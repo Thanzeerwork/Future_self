@@ -30,20 +30,47 @@ import TestManagement from '../screens/Admin/TestManagement';
 // Loading Screen
 import LoadingScreen from '../screens/LoadingScreen';
 
+// Settings Screen
+import Settings from '../screens/Settings';
+
+// Profile Screen
+import Profile from '../screens/Profile';
+
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
-const StudentTabs = () => (
-  <Tab.Navigator
-    screenOptions={{
-      tabBarActiveTintColor: colors.primary,
-      tabBarInactiveTintColor: colors.textSecondary,
-      tabBarStyle: {
-        backgroundColor: colors.white,
-        elevation: 8,
-      },
-    }}
-  >
+const StudentTabs = () => {
+  const { userProfile } = useAuth();
+  
+  return (
+    <Tab.Navigator
+      screenOptions={({ navigation }) => ({
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarStyle: {
+          backgroundColor: colors.white,
+          elevation: 8,
+        },
+        headerShown: true,
+        headerStyle: {
+          backgroundColor: colors.primary,
+          elevation: 4,
+        },
+        headerTintColor: colors.white,
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+        headerRight: () => (
+          <Icon 
+            name="account-circle" 
+            size={28} 
+            color={colors.white}
+            style={{ marginRight: 15 }}
+            onPress={() => navigation.navigate('Profile')}
+          />
+        ),
+      })}
+    >
     <Tab.Screen
       name="Dashboard"
       component={StudentDashboard}
@@ -94,20 +121,52 @@ const StudentTabs = () => (
         ),
       }}
     />
+    <Tab.Screen
+      name="Settings"
+      component={Settings}
+      options={{
+        title: 'Settings',
+        tabBarIcon: ({ color, size }) => (
+          <Icon name="cog" size={size} color={color} />
+        ),
+      }}
+    />
   </Tab.Navigator>
-);
+  );
+};
 
-const MentorTabs = () => (
-  <Tab.Navigator
-    screenOptions={{
-      tabBarActiveTintColor: colors.primary,
-      tabBarInactiveTintColor: colors.textSecondary,
-      tabBarStyle: {
-        backgroundColor: colors.white,
-        elevation: 8,
-      },
-    }}
-  >
+const MentorTabs = () => {
+  const { userProfile } = useAuth();
+  
+  return (
+    <Tab.Navigator
+      screenOptions={({ navigation }) => ({
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarStyle: {
+          backgroundColor: colors.white,
+          elevation: 8,
+        },
+        headerShown: true,
+        headerStyle: {
+          backgroundColor: colors.primary,
+          elevation: 4,
+        },
+        headerTintColor: colors.white,
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+        headerRight: () => (
+          <Icon 
+            name="account-circle" 
+            size={28} 
+            color={colors.white}
+            style={{ marginRight: 15 }}
+            onPress={() => navigation.navigate('Profile')}
+          />
+        ),
+      })}
+    >
     <Tab.Screen
       name="MentorDashboard"
       component={MentorDashboard}
@@ -128,20 +187,52 @@ const MentorTabs = () => (
         ),
       }}
     />
+    <Tab.Screen
+      name="Settings"
+      component={Settings}
+      options={{
+        title: 'Settings',
+        tabBarIcon: ({ color, size }) => (
+          <Icon name="cog" size={size} color={color} />
+        ),
+      }}
+    />
   </Tab.Navigator>
-);
+  );
+};
 
-const AdminTabs = () => (
-  <Tab.Navigator
-    screenOptions={{
-      tabBarActiveTintColor: colors.primary,
-      tabBarInactiveTintColor: colors.textSecondary,
-      tabBarStyle: {
-        backgroundColor: colors.white,
-        elevation: 8,
-      },
-    }}
-  >
+const AdminTabs = () => {
+  const { userProfile } = useAuth();
+  
+  return (
+    <Tab.Navigator
+      screenOptions={({ navigation }) => ({
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarStyle: {
+          backgroundColor: colors.white,
+          elevation: 8,
+        },
+        headerShown: true,
+        headerStyle: {
+          backgroundColor: colors.primary,
+          elevation: 4,
+        },
+        headerTintColor: colors.white,
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+        headerRight: () => (
+          <Icon 
+            name="account-circle" 
+            size={28} 
+            color={colors.white}
+            style={{ marginRight: 15 }}
+            onPress={() => navigation.navigate('Profile')}
+          />
+        ),
+      })}
+    >
     <Tab.Screen
       name="AdminDashboard"
       component={AdminDashboard}
@@ -172,8 +263,19 @@ const AdminTabs = () => (
         ),
       }}
     />
+    <Tab.Screen
+      name="Settings"
+      component={Settings}
+      options={{
+        title: 'Settings',
+        tabBarIcon: ({ color, size }) => (
+          <Icon name="cog" size={size} color={color} />
+        ),
+      }}
+    />
   </Tab.Navigator>
-);
+  );
+};
 
 const AppNavigator = () => {
   const { user, userProfile, loading } = useAuth();
@@ -184,12 +286,62 @@ const AppNavigator = () => {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator 
+        screenOptions={{ 
+          headerShown: false 
+        }}
+      >
         {!user ? (
           // Auth Stack
           <>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="SignUp" component={SignUpScreen} />
+            <Stack.Screen 
+              name="Login" 
+              component={LoginScreen}
+              options={({ navigation }) => ({
+                headerShown: true,
+                title: 'FutureSelf',
+                headerStyle: {
+                  backgroundColor: colors.primary,
+                },
+                headerTintColor: colors.white,
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+                headerRight: () => (
+                  <Icon 
+                    name="account-circle" 
+                    size={28} 
+                    color={colors.white}
+                    style={{ marginRight: 15 }}
+                    onPress={() => navigation.navigate('Profile')}
+                  />
+                ),
+              })}
+            />
+            <Stack.Screen 
+              name="SignUp" 
+              component={SignUpScreen}
+              options={({ navigation }) => ({
+                headerShown: true,
+                title: 'Join FutureSelf',
+                headerStyle: {
+                  backgroundColor: colors.primary,
+                },
+                headerTintColor: colors.white,
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+                headerRight: () => (
+                  <Icon 
+                    name="account-circle" 
+                    size={28} 
+                    color={colors.white}
+                    style={{ marginRight: 15 }}
+                    onPress={() => navigation.navigate('Profile')}
+                  />
+                ),
+              })}
+            />
           </>
         ) : (
           // Main App based on user role
@@ -203,6 +355,21 @@ const AppNavigator = () => {
             {userProfile?.role === USER_ROLES.ADMIN && (
               <Stack.Screen name="AdminApp" component={AdminTabs} />
             )}
+            <Stack.Screen 
+              name="Profile" 
+              component={Profile}
+              options={{
+                headerShown: true,
+                title: 'Profile',
+                headerStyle: {
+                  backgroundColor: colors.primary,
+                },
+                headerTintColor: colors.white,
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
           </>
         )}
       </Stack.Navigator>

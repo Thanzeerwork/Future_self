@@ -23,7 +23,7 @@ const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, signInWithGoogle } = useAuth();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -41,9 +41,15 @@ const LoginScreen = ({ navigation }) => {
     }
   };
 
-  const handleGoogleLogin = () => {
-    // TODO: Implement Google login
-    Alert.alert('Coming Soon', 'Google login will be available soon');
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      Alert.alert('Google Login Failed', error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -97,6 +103,8 @@ const LoginScreen = ({ navigation }) => {
             <Button
               mode="outlined"
               onPress={handleGoogleLogin}
+              loading={loading}
+              disabled={loading}
               style={styles.googleButton}
               icon="google"
             >

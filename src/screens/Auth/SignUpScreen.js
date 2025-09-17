@@ -27,7 +27,7 @@ const SignUpScreen = ({ navigation }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState(USER_ROLES.STUDENT);
   const [loading, setLoading] = useState(false);
-  const { signUp } = useAuth();
+  const { signUp, signUpWithGoogle } = useAuth();
 
   const handleSignUp = async () => {
     if (!email || !password || !confirmPassword) {
@@ -55,9 +55,15 @@ const SignUpScreen = ({ navigation }) => {
     }
   };
 
-  const handleGoogleSignUp = () => {
-    // TODO: Implement Google sign up
-    Alert.alert('Coming Soon', 'Google sign up will be available soon');
+  const handleGoogleSignUp = async () => {
+    setLoading(true);
+    try {
+      await signUpWithGoogle(role);
+    } catch (error) {
+      Alert.alert('Google Sign Up Failed', error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -138,6 +144,8 @@ const SignUpScreen = ({ navigation }) => {
             <Button
               mode="outlined"
               onPress={handleGoogleSignUp}
+              loading={loading}
+              disabled={loading}
               style={styles.googleButton}
               icon="google"
             >
