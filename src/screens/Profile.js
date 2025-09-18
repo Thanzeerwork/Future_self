@@ -9,11 +9,13 @@ import {
   Avatar,
   Portal,
   Modal,
-  ActivityIndicator
+  ActivityIndicator,
+  ProgressBar
 } from 'react-native-paper';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../constants/colors';
 import * as ImagePicker from 'expo-image-picker';
+import ImageUploadService from '../services/imageUploadService';
 
 const Profile = () => {
   const { user, userProfile, updateProfile } = useAuth();
@@ -21,6 +23,8 @@ const Profile = () => {
   const [loading, setLoading] = useState(false);
   const [profileImage, setProfileImage] = useState(null);
   const [showImagePicker, setShowImagePicker] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // Profile form data
   const [formData, setFormData] = useState({
@@ -94,21 +98,28 @@ const Profile = () => {
   const pickImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 1,
+        quality: 0.8,
       });
 
       if (!result.canceled) {
-        setProfileImage(result.assets[0].uri);
-        setFormData(prev => ({
-          ...prev,
-          profileImageUrl: result.assets[0].uri
-        }));
+        const imageUri = result.assets[0].uri;
+        
+        // Validate image
+        const isValid = await ImageUploadService.validateImage(imageUri);
+        if (!isValid) {
+          Alert.alert('Invalid Image', 'Please select a valid image file (JPG, PNG, GIF, WebP) under 10MB');
+          return;
+        }
+
+        setProfileImage(imageUri);
+        await uploadProfileImage(imageUri);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to pick image');
+      console.error('Image picker error:', error);
     }
   };
 
@@ -117,18 +128,25 @@ const Profile = () => {
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 1,
+        quality: 0.8,
       });
 
       if (!result.canceled) {
-        setProfileImage(result.assets[0].uri);
-        setFormData(prev => ({
-          ...prev,
-          profileImageUrl: result.assets[0].uri
-        }));
+        const imageUri = result.assets[0].uri;
+        
+        // Validate image
+        const isValid = await ImageUploadService.validateImage(imageUri);
+        if (!isValid) {
+          Alert.alert('Invalid Image', 'Please take a valid photo');
+          return;
+        }
+
+        setProfileImage(imageUri);
+        await uploadProfileImage(imageUri);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to take photo');
+      console.error('Camera error:', error);
     }
   };
 
@@ -138,6 +156,46 @@ const Profile = () => {
 
   const hideImagePickerModal = () => {
     setShowImagePicker(false);
+  };
+
+  const uploadProfileImage = async (imageUri) => {
+    try {
+      setUploadingImage(true);
+      setUploadProgress(0);
+      
+      // Delete old image if exists
+      if (formData.profileImageUrl && formData.profileImageUrl.startsWith('https://')) {
+        await ImageUploadService.deleteImage(formData.profileImageUrl);
+      }
+
+      // Upload new image
+      const downloadURL = await ImageUploadService.uploadImage(
+        imageUri,
+        user.uid,
+        'profile',
+        (progress) => {
+          setUploadProgress(progress);
+        }
+      );
+
+      // Update form data with new image URL
+      setFormData(prev => ({
+        ...prev,
+        profileImageUrl: downloadURL
+      }));
+
+      // Update profile in database
+      await updateProfile({ profileImageUrl: downloadURL });
+      
+      Alert.alert('Success', 'Profile image updated successfully!');
+    } catch (error) {
+      console.error('Image upload error:', error);
+      Alert.alert('Error', 'Failed to upload image. Please try again.');
+    } finally {
+      setUploadingImage(false);
+      setUploadProgress(0);
+      hideImagePickerModal();
+    }
   };
 
   return (
@@ -162,17 +220,34 @@ const Profile = () => {
               <Avatar.Text 
                 size={120} 
                 label={formData.studentName ? formData.studentName.charAt(0).toUpperCase() : 'U'} 
-                style={styles.profileImage}
+                style={[styles.profileImage, styles.defaultAvatar]}
               />
             )}
-            {isEditing && (
+            
+            {/* Upload Progress */}
+            {uploadingImage && (
+              <View style={styles.uploadProgressContainer}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.uploadProgressText}>
+                  Uploading... {Math.round(uploadProgress)}%
+                </Text>
+                <ProgressBar 
+                  progress={uploadProgress / 100} 
+                  color={colors.primary}
+                  style={styles.uploadProgressBar}
+                />
+              </View>
+            )}
+            
+            {isEditing && !uploadingImage && (
               <Button 
                 mode="contained" 
                 onPress={showImagePickerModal}
                 style={styles.imageButton}
                 compact
+                disabled={uploadingImage}
               >
-                Change Photo
+                {formData.profileImageUrl ? 'Change Photo' : 'Add Photo'}
               </Button>
             )}
           </View>
@@ -404,8 +479,26 @@ const styles = StyleSheet.create({
   profileImage: {
     marginBottom: 10,
   },
+  defaultAvatar: {
+    backgroundColor: colors.primary,
+  },
   imageButton: {
     marginTop: 10,
+  },
+  uploadProgressContainer: {
+    alignItems: 'center',
+    marginTop: 10,
+    width: '100%',
+  },
+  uploadProgressText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 5,
+    marginBottom: 5,
+  },
+  uploadProgressBar: {
+    width: '80%',
+    height: 4,
   },
   sectionTitle: {
     color: colors.textPrimary,
@@ -458,4 +551,5 @@ const styles = StyleSheet.create({
 });
 
 export default Profile;
+
 

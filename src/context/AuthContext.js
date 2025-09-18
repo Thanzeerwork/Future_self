@@ -6,6 +6,7 @@ import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firest
 import { USER_ROLES } from '../constants/roles';
 import googleAuthConfig from '../config/googleSignIn';
 import * as AuthSession from 'expo-auth-session';
+import ImageUploadService from '../services/imageUploadService';
 
 const AuthContext = createContext({});
 
@@ -102,6 +103,21 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (updates) => {
     try {
       const userDocRef = doc(firestore, 'users', user.uid);
+      
+      // If updating profile image, handle old image deletion
+      if (updates.profileImageUrl && userProfile?.profileImageUrl) {
+        // Only delete if the old URL is different and is a Firebase Storage URL
+        if (updates.profileImageUrl !== userProfile.profileImageUrl && 
+            userProfile.profileImageUrl.startsWith('https://firebasestorage.googleapis.com')) {
+          try {
+            await ImageUploadService.deleteImage(userProfile.profileImageUrl);
+          } catch (deleteError) {
+            console.warn('Failed to delete old profile image:', deleteError);
+            // Don't throw error for deletion failures
+          }
+        }
+      }
+      
       await updateDoc(userDocRef, {
         ...updates,
         updatedAt: serverTimestamp(),

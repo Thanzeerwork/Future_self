@@ -14,6 +14,7 @@ import {
   Chip,
   ProgressBar,
   Text,
+  Avatar,
 } from 'react-native-paper';
 import { useAuth } from '../../context/AuthContext';
 import { colors } from '../../constants/colors';
@@ -109,13 +110,30 @@ const StudentDashboard = ({ navigation }) => {
       >
         {/* Welcome Section */}
         <Card style={styles.welcomeCard}>
-          <Card.Content>
-            <Title style={styles.welcomeTitle}>
-              Welcome back, {userProfile?.email?.split('@')[0]}!
-            </Title>
-            <Paragraph style={styles.welcomeSubtitle}>
-              Ready to take the next step in your career?
-            </Paragraph>
+          <Card.Content style={styles.welcomeContent}>
+            <View style={styles.welcomeHeader}>
+              <View style={styles.welcomeText}>
+                <Title style={styles.welcomeTitle}>
+                  Welcome back, {userProfile?.studentName || userProfile?.email?.split('@')[0]}!
+                </Title>
+                <Paragraph style={styles.welcomeSubtitle}>
+                  Ready to take the next step in your career?
+                </Paragraph>
+              </View>
+              {userProfile?.profileImageUrl ? (
+                <Avatar.Image 
+                  size={60} 
+                  source={{ uri: userProfile.profileImageUrl }} 
+                  style={styles.profileAvatar}
+                />
+              ) : (
+                <Avatar.Text 
+                  size={60} 
+                  label={userProfile?.studentName ? userProfile.studentName.charAt(0).toUpperCase() : 'U'} 
+                  style={styles.profileAvatar}
+                />
+              )}
+            </View>
           </Card.Content>
         </Card>
 
@@ -229,6 +247,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     backgroundColor: colors.primary,
   },
+  welcomeContent: {
+    paddingVertical: 20,
+  },
+  welcomeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  welcomeText: {
+    flex: 1,
+    marginRight: 16,
+  },
   welcomeTitle: {
     color: colors.white,
     fontSize: 24,
@@ -238,6 +268,9 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 16,
     opacity: 0.9,
+  },
+  profileAvatar: {
+    backgroundColor: colors.white,
   },
   progressCard: {
     margin: 16,
