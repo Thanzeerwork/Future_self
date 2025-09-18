@@ -4,7 +4,8 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../context/AuthContext';
 import { USER_ROLES } from '../constants/roles';
-import { colors } from '../constants/colors';
+import { colors as baseColors } from '../constants/colors';
+import { useThemeMode } from '../context/ThemeContext';
 import Icon from '../components/Icon';
 
 // Auth Screens
@@ -41,6 +42,7 @@ const Tab = createBottomTabNavigator();
 
 const StudentTabs = () => {
   const { userProfile } = useAuth();
+  const { colors } = useThemeMode();
   
   return (
     <Tab.Navigator
@@ -48,7 +50,7 @@ const StudentTabs = () => {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
-          backgroundColor: colors.white,
+          backgroundColor: colors.surface,
           elevation: 8,
         },
         headerShown: true,
@@ -137,6 +139,7 @@ const StudentTabs = () => {
 
 const MentorTabs = () => {
   const { userProfile } = useAuth();
+  const { colors } = useThemeMode();
   
   return (
     <Tab.Navigator
@@ -144,7 +147,7 @@ const MentorTabs = () => {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
-          backgroundColor: colors.white,
+          backgroundColor: colors.surface,
           elevation: 8,
         },
         headerShown: true,
@@ -203,6 +206,7 @@ const MentorTabs = () => {
 
 const AdminTabs = () => {
   const { userProfile } = useAuth();
+  const { colors } = useThemeMode();
   
   return (
     <Tab.Navigator
@@ -210,7 +214,7 @@ const AdminTabs = () => {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
-          backgroundColor: colors.white,
+          backgroundColor: colors.surface,
           elevation: 8,
         },
         headerShown: true,
@@ -279,13 +283,14 @@ const AdminTabs = () => {
 
 const AppNavigator = () => {
   const { user, userProfile, loading } = useAuth();
+  const { navigationTheme, colors } = useThemeMode();
 
   if (loading) {
     return <LoadingScreen />;
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navigationTheme}>
       <Stack.Navigator 
         screenOptions={{ 
           headerShown: false 

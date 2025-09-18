@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Card, Button, Divider } from 'react-native-paper';
+import { Text, Card, Button, Divider, Switch } from 'react-native-paper';
 import { useAuth } from '../context/AuthContext';
-import { colors } from '../constants/colors';
+import { useThemeMode } from '../context/ThemeContext';
 
 const Settings = () => {
   const { user, userProfile, signOut } = useAuth();
+  const { isDark, toggleMode, colors } = useThemeMode();
 
   const handleSignOut = async () => {
     try {
@@ -16,32 +17,32 @@ const Settings = () => {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
-        <Text variant="headlineMedium" style={styles.title}>
+        <Text variant="headlineMedium" style={[styles.title, { color: colors.textPrimary }]}>
           Settings
         </Text>
       </View>
 
       <Card style={styles.card}>
         <Card.Content>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
+          <Text variant="titleMedium" style={[styles.sectionTitle, { color: colors.textPrimary }]}>
             Account Information
           </Text>
           <View style={styles.infoRow}>
-            <Text variant="bodyMedium" style={styles.label}>Email:</Text>
-            <Text variant="bodyMedium" style={styles.value}>{user?.email}</Text>
+            <Text variant="bodyMedium" style={[styles.label, { color: colors.textSecondary }]}>Email:</Text>
+            <Text variant="bodyMedium" style={[styles.value, { color: colors.textPrimary }]}>{user?.email}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text variant="bodyMedium" style={styles.label}>Role:</Text>
-            <Text variant="bodyMedium" style={styles.value}>{userProfile?.role}</Text>
+            <Text variant="bodyMedium" style={[styles.label, { color: colors.textSecondary }]}>Role:</Text>
+            <Text variant="bodyMedium" style={[styles.value, { color: colors.textPrimary }]}>{userProfile?.role}</Text>
           </View>
         </Card.Content>
       </Card>
 
       <Card style={styles.card}>
         <Card.Content>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
+          <Text variant="titleMedium" style={[styles.sectionTitle, { color: colors.textPrimary }]}>
             App Settings
           </Text>
           <Button 
@@ -72,6 +73,20 @@ const Settings = () => {
 
       <Card style={styles.card}>
         <Card.Content>
+          <View style={styles.infoRow}>
+            <Text variant="titleMedium" style={[styles.sectionTitle, { marginBottom: 0, color: colors.textPrimary }]}>
+              Appearance
+            </Text>
+            <Switch value={isDark} onValueChange={toggleMode} />
+          </View>
+          <Text variant="bodySmall" style={[{ color: colors.textSecondary }]}>
+            Toggle Dark Mode
+          </Text>
+        </Card.Content>
+      </Card>
+
+      <Card style={styles.card}>
+        <Card.Content>
           <Button 
             mode="contained" 
             onPress={handleSignOut}
@@ -89,14 +104,12 @@ const Settings = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   header: {
     padding: 20,
     paddingTop: 40,
   },
   title: {
-    color: colors.textPrimary,
     fontWeight: 'bold',
   },
   card: {
@@ -104,7 +117,6 @@ const styles = StyleSheet.create({
     marginTop: 0,
   },
   sectionTitle: {
-    color: colors.textPrimary,
     marginBottom: 16,
     fontWeight: '600',
   },
@@ -115,11 +127,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   label: {
-    color: colors.textSecondary,
     fontWeight: '500',
   },
   value: {
-    color: colors.textPrimary,
   },
   settingButton: {
     justifyContent: 'flex-start',
