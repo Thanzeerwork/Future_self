@@ -3,37 +3,31 @@ import {
   View,
   StyleSheet,
   ScrollView,
-  RefreshControl,
+  Alert,
 } from 'react-native';
 import {
   Card,
   Title,
   Paragraph,
   Button,
-  Chip,
   Text,
+  Chip,
+  DataTable,
   FAB,
-  TextInput,
   Searchbar,
+  Menu,
+  IconButton,
 } from 'react-native-paper';
 import { colors } from '../../constants/colors';
 import { firestore } from '../../../firebase.config';
-import { collection, getDocs, doc, deleteDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 
 const TestManagement = ({ navigation }) => {
   const [tests, setTests] = useState([]);
-  const [filteredTests, setFilteredTests] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-
-  const testCategories = [
-    { name: 'Aptitude', value: 'aptitude', color: colors.primary },
-    { name: 'Coding', value: 'coding', color: colors.secondary },
-    { name: 'Technical', value: 'technical', color: colors.accent },
-    { name: 'Soft Skills', value: 'soft-skills', color: colors.success },
-  ];
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredTests, setFilteredTests] = useState([]);
+  const [menuVisible, setMenuVisible] = useState({});
 
   useEffect(() => {
     loadTests();
@@ -41,11 +35,17 @@ const TestManagement = ({ navigation }) => {
 
   useEffect(() => {
     filterTests();
-  }, [tests, searchQuery, selectedCategory]);
+  }, [searchQuery, tests]);
 
   const loadTests = async () => {
     try {
-      const testsSnapshot = await firestore().collection('tests').get();
+      setLoading(true);
+      const testsQuery = query(
+        collection(firestore, 'tests'),
+        orderBy('createdAt', 'desc')
+      );
+      const testsSnapshot = await getDocs(testsQuery);
+      
       const testsData = testsSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
@@ -54,93 +54,121 @@ const TestManagement = ({ navigation }) => {
       setTests(testsData);
     } catch (error) {
       console.error('Error loading tests:', error);
+      Alert.alert('Error', 'Failed to load tests');
     } finally {
       setLoading(false);
     }
   };
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadTests();
-    setRefreshing(false);
-  };
-
   const filterTests = () => {
-    let filtered = tests;
-
-    // Filter by search query
-    if (searchQuery.trim()) {
-      filtered = filtered.filter(test =>
-        test.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        test.description?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+    if (!searchQuery) {
+      setFilteredTests(tests);
+      return;
     }
 
-    // Filter by category
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(test => test.category === selectedCategory);
-    }
-
+    const filtered = tests.filter(test =>
+      test.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      test.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      test.difficulty.toLowerCase().includes(searchQuery.toLowerCase())
+    );
     setFilteredTests(filtered);
   };
 
-  const deleteTest = async (testId) => {
-    try {
-      await firestore().collection('tests').doc(testId).delete();
-      
-      // Update local state
-      setTests(prev => prev.filter(test => test.id !== testId));
-    } catch (error) {
-      console.error('Error deleting test:', error);
-    }
+  const handleCreateTest = () => {
+    navigation.navigate('CreateTest');
   };
 
-  const toggleTestStatus = async (testId, currentStatus) => {
+  const handleEditTest = (testId) => {
+    navigation.navigate('EditTest', { testId });
+  };
+
+  const handleDeleteTest = async (testId) => {
+    Alert.alert(
+      'Delete Test',
+      'Are you sure you want to delete this test? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(firestore, 'tests', testId));
+              setTests(tests.filter(test => test.id !== testId));
+              Alert.alert('Success', 'Test deleted successfully');
+            } catch (error) {
+              console.error('Error deleting test:', error);
+              Alert.alert('Error', 'Failed to delete test');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleToggleStatus = async (testId, currentStatus) => {
     try {
       const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-      await firestore()
-        .collection('tests')
-        .doc(testId)
-        .update({
-          status: newStatus,
-          updatedAt: firestore.FieldValue.serverTimestamp(),
-        });
-
-      // Update local state
-      setTests(prev => prev.map(test =>
+      await updateDoc(doc(firestore, 'tests', testId), {
+        status: newStatus,
+        updatedAt: new Date().toISOString(),
+      });
+      
+      setTests(tests.map(test =>
         test.id === testId ? { ...test, status: newStatus } : test
       ));
+      
+      Alert.alert('Success', `Test ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully`);
     } catch (error) {
       console.error('Error updating test status:', error);
+      Alert.alert('Error', 'Failed to update test status');
     }
   };
 
-  const getCategoryColor = (category) => {
-    const categoryObj = testCategories.find(cat => cat.value === category);
-    return categoryObj?.color || colors.textSecondary;
+  const getStatusColor = (status) => {
+    return status === 'active' ? colors.success : colors.error;
   };
 
   const getDifficultyColor = (difficulty) => {
-    switch (difficulty?.toLowerCase()) {
-      case 'easy':
+    switch (difficulty.toLowerCase()) {
+      case 'beginner':
         return colors.success;
-      case 'medium':
+      case 'intermediate':
         return colors.warning;
-      case 'hard':
+      case 'advanced':
         return colors.error;
       default:
         return colors.textSecondary;
     }
   };
 
+  const toggleMenu = (testId) => {
+    setMenuVisible({
+      ...menuVisible,
+      [testId]: !menuVisible[testId],
+    });
+  };
+
+  const closeMenu = (testId) => {
+    setMenuVisible({
+      ...menuVisible,
+      [testId]: false,
+    });
+  };
+
   return (
     <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
+      <ScrollView style={styles.scrollView}>
+        {/* Header */}
+        <Card style={styles.headerCard}>
+          <Card.Content>
+            <Title style={styles.headerTitle}>Test Management</Title>
+            <Paragraph style={styles.headerSubtitle}>
+              Manage and monitor all tests in the system
+            </Paragraph>
+          </Card.Content>
+        </Card>
+
         {/* Search and Filters */}
         <Card style={styles.searchCard}>
           <Card.Content>
@@ -150,26 +178,29 @@ const TestManagement = ({ navigation }) => {
               value={searchQuery}
               style={styles.searchBar}
             />
-            <View style={styles.filterContainer}>
-              <Text style={styles.filterLabel}>Filter by category:</Text>
-              <View style={styles.categoryFilters}>
-                <Chip
-                  selected={selectedCategory === 'all'}
-                  onPress={() => setSelectedCategory('all')}
-                  style={styles.categoryChip}
-                >
-                  All
-                </Chip>
-                {testCategories.map((category) => (
-                  <Chip
-                    key={category.value}
-                    selected={selectedCategory === category.value}
-                    onPress={() => setSelectedCategory(category.value)}
-                    style={styles.categoryChip}
-                  >
-                    {category.name}
-                  </Chip>
-                ))}
+          </Card.Content>
+        </Card>
+
+        {/* Statistics */}
+        <Card style={styles.statsCard}>
+          <Card.Content>
+            <Title style={styles.statsTitle}>Test Statistics</Title>
+            <View style={styles.statsContainer}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{tests.length}</Text>
+                <Text style={styles.statLabel}>Total Tests</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {tests.filter(test => test.status === 'active').length}
+                </Text>
+                <Text style={styles.statLabel}>Active</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {tests.filter(test => test.status === 'inactive').length}
+                </Text>
+                <Text style={styles.statLabel}>Inactive</Text>
               </View>
             </View>
           </Card.Content>
@@ -178,55 +209,48 @@ const TestManagement = ({ navigation }) => {
         {/* Tests List */}
         <Card style={styles.testsCard}>
           <Card.Content>
-            <Title style={styles.cardTitle}>
-              Tests ({filteredTests.length})
-            </Title>
-            {filteredTests.length === 0 ? (
-              <View style={styles.emptyState}>
+            <Title style={styles.testsTitle}>All Tests</Title>
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Loading tests...</Text>
+              </View>
+            ) : filteredTests.length === 0 ? (
+              <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>No tests found</Text>
                 <Button
-                  mode="outlined"
-                  onPress={() => navigation.navigate('CreateTest')}
+                  mode="contained"
+                  onPress={handleCreateTest}
                   style={styles.createButton}
                 >
-                  Create Test
+                  Create First Test
                 </Button>
               </View>
             ) : (
-              filteredTests.map((test) => (
-                <Card key={test.id} style={styles.testCard}>
-                  <Card.Content>
-                    <View style={styles.testHeader}>
-                      <View style={styles.testInfo}>
+              <DataTable>
+                <DataTable.Header>
+                  <DataTable.Title>Title</DataTable.Title>
+                  <DataTable.Title>Category</DataTable.Title>
+                  <DataTable.Title>Difficulty</DataTable.Title>
+                  <DataTable.Title>Status</DataTable.Title>
+                  <DataTable.Title>Actions</DataTable.Title>
+                </DataTable.Header>
+
+                {filteredTests.map((test) => (
+                  <DataTable.Row key={test.id}>
+                    <DataTable.Cell>
+                      <View>
                         <Text style={styles.testTitle}>{test.title}</Text>
                         <Text style={styles.testDescription}>
-                          {test.description}
+                          {test.questionCount} questions • {test.duration} min
                         </Text>
                       </View>
-                      <View style={styles.testStatus}>
-                        <Chip
-                          icon={test.status === 'active' ? 'check-circle' : 'close-circle'}
-                          style={[
-                            styles.statusChip,
-                            { backgroundColor: test.status === 'active' ? colors.success : colors.error }
-                          ]}
-                          textStyle={{ color: colors.white }}
-                        >
-                          {test.status || 'active'}
-                        </Chip>
-                      </View>
-                    </View>
-                    
-                    <View style={styles.testDetails}>
-                      <Chip
-                        style={[
-                          styles.categoryChip,
-                          { backgroundColor: getCategoryColor(test.category) }
-                        ]}
-                        textStyle={{ color: colors.white }}
-                      >
-                        {test.category || 'Uncategorized'}
+                    </DataTable.Cell>
+                    <DataTable.Cell>
+                      <Chip style={styles.categoryChip}>
+                        {test.category}
                       </Chip>
+                    </DataTable.Cell>
+                    <DataTable.Cell>
                       <Chip
                         style={[
                           styles.difficultyChip,
@@ -234,61 +258,95 @@ const TestManagement = ({ navigation }) => {
                         ]}
                         textStyle={{ color: colors.white }}
                       >
-                        {test.difficulty || 'Unknown'}
+                        {test.difficulty}
                       </Chip>
-                      <Text style={styles.testMeta}>
-                        {test.questionCount || 0} questions • {test.duration || 0} min
-                      </Text>
-                    </View>
-
-                    <View style={styles.testStats}>
-                      <Text style={styles.statText}>
-                        Attempts: {test.attempts || 0}
-                      </Text>
-                      <Text style={styles.statText}>
-                        Avg Score: {test.averageScore || 0}%
-                      </Text>
-                      <Text style={styles.statText}>
-                        Created: {test.createdAt?.toDate?.()?.toLocaleDateString() || 'Unknown'}
-                      </Text>
-                    </View>
-
-                    <View style={styles.testControls}>
-                      <Button
-                        mode="outlined"
-                        onPress={() => navigation.navigate('EditTest', { testId: test.id })}
-                        style={styles.controlButton}
+                    </DataTable.Cell>
+                    <DataTable.Cell>
+                      <Chip
+                        style={[
+                          styles.statusChip,
+                          { backgroundColor: getStatusColor(test.status) }
+                        ]}
+                        textStyle={{ color: colors.white }}
                       >
-                        Edit
-                      </Button>
-                      <Button
-                        mode="outlined"
-                        onPress={() => navigation.navigate('TestPreview', { testId: test.id })}
-                        style={styles.controlButton}
+                        {test.status}
+                      </Chip>
+                    </DataTable.Cell>
+                    <DataTable.Cell>
+                      <Menu
+                        visible={menuVisible[test.id] || false}
+                        onDismiss={() => closeMenu(test.id)}
+                        anchor={
+                          <IconButton
+                            icon="dots-vertical"
+                            onPress={() => toggleMenu(test.id)}
+                          />
+                        }
                       >
-                        Preview
-                      </Button>
-                      <Button
-                        mode="contained"
-                        onPress={() => toggleTestStatus(test.id, test.status || 'active')}
-                        style={styles.controlButton}
-                      >
-                        {test.status === 'active' ? 'Deactivate' : 'Activate'}
-                      </Button>
-                      <Button
-                        mode="outlined"
-                        onPress={() => deleteTest(test.id)}
-                        style={[styles.controlButton, styles.deleteButton]}
-                        buttonColor={colors.error}
-                        textColor={colors.white}
-                      >
-                        Delete
-                      </Button>
-                    </View>
-                  </Card.Content>
-                </Card>
-              ))
+                        <Menu.Item
+                          onPress={() => {
+                            closeMenu(test.id);
+                            handleEditTest(test.id);
+                          }}
+                          title="Edit"
+                          leadingIcon="pencil"
+                        />
+                        <Menu.Item
+                          onPress={() => {
+                            closeMenu(test.id);
+                            handleToggleStatus(test.id, test.status);
+                          }}
+                          title={test.status === 'active' ? 'Deactivate' : 'Activate'}
+                          leadingIcon={test.status === 'active' ? 'pause' : 'play'}
+                        />
+                        <Menu.Item
+                          onPress={() => {
+                            closeMenu(test.id);
+                            handleDeleteTest(test.id);
+                          }}
+                          title="Delete"
+                          leadingIcon="delete"
+                          titleStyle={{ color: colors.error }}
+                        />
+                      </Menu>
+                    </DataTable.Cell>
+                  </DataTable.Row>
+                ))}
+              </DataTable>
             )}
+          </Card.Content>
+        </Card>
+
+        {/* Quick Actions */}
+        <Card style={styles.actionsCard}>
+          <Card.Content>
+            <Title style={styles.actionsTitle}>Quick Actions</Title>
+            <View style={styles.actionsContainer}>
+              <Button
+                mode="contained"
+                onPress={handleCreateTest}
+                style={styles.actionButton}
+                icon="plus"
+              >
+                Create Test
+              </Button>
+              <Button
+                mode="outlined"
+                onPress={() => navigation.navigate('TestAnalytics')}
+                style={styles.actionButton}
+                icon="chart-line"
+              >
+                View Analytics
+              </Button>
+              <Button
+                mode="outlined"
+                onPress={loadTests}
+                style={styles.actionButton}
+                icon="refresh"
+              >
+                Refresh
+              </Button>
+            </View>
           </Card.Content>
         </Card>
       </ScrollView>
@@ -296,7 +354,7 @@ const TestManagement = ({ navigation }) => {
       <FAB
         style={styles.fab}
         icon="plus"
-        onPress={() => navigation.navigate('CreateTest')}
+        onPress={handleCreateTest}
       />
     </View>
   );
@@ -310,108 +368,75 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  searchCard: {
+  headerCard: {
     margin: 16,
     marginBottom: 8,
+    backgroundColor: colors.primary,
   },
-  searchBar: {
-    marginBottom: 16,
-  },
-  filterContainer: {
-    marginTop: 8,
-  },
-  filterLabel: {
-    fontSize: 16,
+  headerTitle: {
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 8,
-    color: colors.text,
-  },
-  categoryFilters: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  categoryChip: {
+    color: colors.white,
     marginBottom: 8,
   },
-  testsCard: {
+  headerSubtitle: {
+    fontSize: 16,
+    color: colors.white,
+    opacity: 0.9,
+  },
+  searchCard: {
     margin: 16,
     marginVertical: 8,
   },
-  cardTitle: {
+  searchBar: {
+    elevation: 0,
+  },
+  statsCard: {
+    margin: 16,
+    marginVertical: 8,
+  },
+  statsTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 16,
     color: colors.text,
   },
-  testCard: {
-    marginBottom: 12,
-    elevation: 2,
-  },
-  testHeader: {
+  statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
+    justifyContent: 'space-around',
   },
-  testInfo: {
-    flex: 1,
+  statItem: {
+    alignItems: 'center',
   },
-  testTitle: {
-    fontSize: 16,
+  statValue: {
+    fontSize: 24,
     fontWeight: 'bold',
+    color: colors.primary,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  testsCard: {
+    margin: 16,
+    marginVertical: 8,
+  },
+  testsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
     color: colors.text,
   },
-  testDescription: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  testStatus: {
-    marginLeft: 8,
-  },
-  statusChip: {
-    marginLeft: 8,
-  },
-  testDetails: {
-    flexDirection: 'row',
+  loadingContainer: {
     alignItems: 'center',
-    marginBottom: 8,
-    flexWrap: 'wrap',
+    paddingVertical: 20,
   },
-  difficultyChip: {
-    marginLeft: 8,
-    marginBottom: 8,
-  },
-  testMeta: {
-    fontSize: 12,
+  loadingText: {
+    fontSize: 16,
     color: colors.textSecondary,
-    marginLeft: 8,
   },
-  testStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-    flexWrap: 'wrap',
-  },
-  statText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginBottom: 4,
-  },
-  testControls: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  controlButton: {
-    flex: 1,
-    minWidth: 80,
-  },
-  deleteButton: {
-    borderColor: colors.error,
-  },
-  emptyState: {
+  emptyContainer: {
     alignItems: 'center',
     paddingVertical: 20,
   },
@@ -422,6 +447,44 @@ const styles = StyleSheet.create({
   },
   createButton: {
     marginTop: 8,
+  },
+  testTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  testDescription: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  categoryChip: {
+    backgroundColor: colors.secondary,
+  },
+  difficultyChip: {
+    marginBottom: 4,
+  },
+  statusChip: {
+    marginBottom: 4,
+  },
+  actionsCard: {
+    margin: 16,
+    marginVertical: 8,
+  },
+  actionsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    color: colors.text,
+  },
+  actionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
+    minWidth: 120,
   },
   fab: {
     position: 'absolute',

@@ -93,20 +93,41 @@ const TestList = ({ navigation }) => {
           </Card.Content>
         </Card>
 
+        {/* AI Test Generator */}
+        <Card style={styles.generatorCard}>
+          <Card.Content>
+            <Title style={styles.cardTitle}>AI Test Generator</Title>
+            <Paragraph style={styles.generatorDescription}>
+              Generate personalized tests using advanced AI technology. Get questions tailored to your skill level and learning goals.
+            </Paragraph>
+            <View style={styles.generatorActions}>
+              <Button
+                mode="contained"
+                onPress={() => navigation.navigate('TestGenerator')}
+                style={styles.generatorButton}
+                icon="robot"
+              >
+                Generate AI Test
+              </Button>
+              <Button
+                mode="outlined"
+                onPress={() => navigation.navigate('TestGenerator')}
+                style={styles.quickButton}
+              >
+                Quick Test
+              </Button>
+            </View>
+          </Card.Content>
+        </Card>
+
         {/* Available Tests */}
         <Card style={styles.testsCard}>
           <Card.Content>
             <Title style={styles.cardTitle}>Available Tests</Title>
             {tests.length === 0 ? (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyText}>No tests available</Text>
-                <Button
-                  mode="outlined"
-                  onPress={() => navigation.navigate('CreateTest')}
-                  style={styles.createButton}
-                >
-                  Create Test
-                </Button>
+                <Text style={styles.emptyText}>No pre-made tests available</Text>
+                <Text style={styles.emptySubtext}>Use the AI Test Generator to create personalized tests</Text>
               </View>
             ) : (
               tests.map((test) => (
@@ -186,6 +207,30 @@ const styles = StyleSheet.create({
     margin: 16,
     marginBottom: 8,
   },
+  generatorCard: {
+    margin: 16,
+    marginVertical: 8,
+    backgroundColor: colors.primary,
+  },
+  generatorDescription: {
+    fontSize: 14,
+    color: colors.white,
+    opacity: 0.9,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  generatorActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  generatorButton: {
+    flex: 1,
+    backgroundColor: colors.white,
+  },
+  quickButton: {
+    flex: 1,
+    borderColor: colors.white,
+  },
   cardTitle: {
     fontSize: 18,
     fontWeight: 'bold',
@@ -255,7 +300,13 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: colors.textSecondary,
     marginBottom: 16,
+    textAlign: 'center',
   },
   createButton: {
     marginTop: 8,

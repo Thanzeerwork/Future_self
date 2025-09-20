@@ -16,6 +16,10 @@ import SignUpScreen from '../screens/Auth/SignUpScreen';
 import StudentDashboard from '../screens/Student/StudentDashboard';
 import ResumeBuilder from '../screens/Student/ResumeBuilder';
 import TestList from '../screens/Student/TestList';
+import TestGenerator from '../screens/Student/TestGenerator';
+import TestScreen from '../screens/Student/TestScreen';
+import TestResults from '../screens/Student/TestResults';
+import DetailedAnalysis from '../screens/Student/DetailedAnalysis';
 import CareerRoadmap from '../screens/Student/CareerRoadmap';
 import Analytics from '../screens/Student/Analytics';
 
@@ -27,6 +31,7 @@ import ResumeReview from '../screens/Mentor/ResumeReview';
 import AdminDashboard from '../screens/Admin/AdminDashboard';
 import UserManagement from '../screens/Admin/UserManagement';
 import TestManagement from '../screens/Admin/TestManagement';
+import TestAnalytics from '../screens/Admin/TestAnalytics';
 
 // Loading Screen
 import LoadingScreen from '../screens/LoadingScreen';
@@ -366,6 +371,85 @@ const AppNavigator = () => {
               options={{
                 headerShown: true,
                 title: 'Profile',
+                headerStyle: {
+                  backgroundColor: colors.primary,
+                },
+                headerTintColor: colors.white,
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            
+            {/* Test Screens */}
+            <Stack.Screen 
+              name="TestGenerator" 
+              component={TestGenerator}
+              options={{
+                headerShown: true,
+                title: 'AI Test Generator',
+                headerStyle: {
+                  backgroundColor: colors.primary,
+                },
+                headerTintColor: colors.white,
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="TestScreen" 
+              component={TestScreen}
+              options={{
+                headerShown: true,
+                title: 'Taking Test',
+                headerStyle: {
+                  backgroundColor: colors.primary,
+                },
+                headerTintColor: colors.white,
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="TestResults" 
+              component={TestResults}
+              options={{
+                headerShown: true,
+                title: 'Test Results',
+                headerStyle: {
+                  backgroundColor: colors.primary,
+                },
+                headerTintColor: colors.white,
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="DetailedAnalysis" 
+              component={DetailedAnalysis}
+              options={{
+                headerShown: true,
+                title: 'Detailed Analysis',
+                headerStyle: {
+                  backgroundColor: colors.primary,
+                },
+                headerTintColor: colors.white,
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            
+            {/* Admin Screens */}
+            <Stack.Screen 
+              name="TestAnalytics" 
+              component={TestAnalytics}
+              options={{
+                headerShown: true,
+                title: 'Test Analytics',
                 headerStyle: {
                   backgroundColor: colors.primary,
                 },

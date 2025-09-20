@@ -160,7 +160,7 @@ const CareerRoadmap = ({ navigation }) => {
         {/* Milestones */}
         <Card style={styles.milestonesCard}>
           <Card.Content>
-            <Title style={styles.cardTitle}>Learning Milestones</Title>
+            <Title style={styles.cardTitle2}>Learning Milestones</Title>
             {roadmap.milestones.map((milestone) => (
               <Card key={milestone.id} style={styles.milestoneCard}>
                 <Card.Content>
@@ -209,7 +209,7 @@ const CareerRoadmap = ({ navigation }) => {
         {/* Recommendations */}
         <Card style={styles.recommendationsCard}>
           <Card.Content>
-            <Title style={styles.cardTitle}>Recommendations</Title>
+            <Title style={styles.cardTitle2}>Recommendations</Title>
             {roadmap.recommendations.map((recommendation, index) => (
               <View key={index} style={styles.recommendationItem}>
                 <Text style={styles.recommendationText}>
@@ -223,7 +223,7 @@ const CareerRoadmap = ({ navigation }) => {
         {/* AI Suggestions */}
         <Card style={styles.suggestionsCard}>
           <Card.Content>
-            <Title style={styles.cardTitle}>AI-Powered Suggestions</Title>
+            <Title style={styles.cardTitle2}>AI-Powered Suggestions</Title>
             <Paragraph style={styles.suggestionText}>
               Based on your progress and goals, we recommend focusing on:
             </Paragraph>
@@ -277,6 +277,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: colors.white,
+    marginBottom: 8,
+  },
+  cardTitle2: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.black,
     marginBottom: 8,
   },
   currentLevel: {
