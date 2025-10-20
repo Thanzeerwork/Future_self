@@ -215,7 +215,7 @@ const Analytics = ({ navigation }) => {
             <View style={styles.actionButtons}>
               <Button
                 mode="contained"
-                onPress={() => navigation.navigate('TestList')}
+                onPress={() => navigation.navigate('StudentApp', { screen: 'TestList' })}
                 style={styles.actionButton}
               >
                 Take Practice Test

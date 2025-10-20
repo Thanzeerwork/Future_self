@@ -16,16 +16,20 @@ import {
   FAB,
 } from 'react-native-paper';
 import { colors } from '../../constants/colors';
+import { useAuth } from '../../context/AuthContext';
 import { firestore } from '../../../firebase.config';
-import { collection, query, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, getDocs, where, orderBy } from 'firebase/firestore';
 
 const TestList = ({ navigation }) => {
+  const { userProfile } = useAuth();
   const [tests, setTests] = useState([]);
+  const [recentResults, setRecentResults] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadTests();
+    loadRecentResults();
   }, []);
 
   const loadTests = async () => {
@@ -49,14 +53,60 @@ const TestList = ({ navigation }) => {
     }
   };
 
+  const loadRecentResults = async () => {
+    try {
+      if (!userProfile?.uid) return;
+
+      const resultsQuery = query(
+        collection(firestore, 'testResults'),
+        where('userId', '==', userProfile.uid)
+      );
+      const resultsSnapshot = await getDocs(resultsQuery);
+      
+      const resultsData = resultsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      
+      // Sort by completedAt in descending order and limit to 5
+      const sortedResults = resultsData
+        .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
+        .slice(0, 5);
+      
+      setRecentResults(sortedResults);
+    } catch (error) {
+      console.error('Error loading recent results:', error);
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadTests();
+    await Promise.all([loadTests(), loadRecentResults()]);
     setRefreshing(false);
   };
 
   const startTest = (testId) => {
     navigation.navigate('TestScreen', { testId });
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getScoreColor = (score) => {
+    if (score >= 80) return colors.success;
+    if (score >= 60) return colors.warning;
+    return colors.error;
+  };
+
+  const viewResult = (result) => {
+    navigation.navigate('TestResults', { testResults: result });
   };
 
   const testCategories = [
@@ -163,9 +213,9 @@ const TestList = ({ navigation }) => {
                       </Button>
                       <Button
                         mode="outlined"
-                        onPress={() => navigation.navigate('TestPreview', { testId: test.id })}
+                        onPress={() => navigation.navigate('TestGenerator')}
                       >
-                        Preview
+                        Generate Test
                       </Button>
                     </View>
                   </Card.Content>
@@ -179,9 +229,47 @@ const TestList = ({ navigation }) => {
         <Card style={styles.resultsCard}>
           <Card.Content>
             <Title style={styles.cardTitle}>Recent Results</Title>
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>No recent test results</Text>
-            </View>
+            {recentResults.length > 0 ? (
+              recentResults.map((result) => (
+                <Card key={result.id} style={styles.resultItem}>
+                  <Card.Content>
+                    <View style={styles.resultHeader}>
+                      <View style={styles.resultInfo}>
+                        <Text style={styles.resultCategory}>
+                          {result.category} - {result.difficulty}
+                        </Text>
+                        <Text style={styles.resultDate}>
+                          {formatDate(result.completedAt)}
+                        </Text>
+                      </View>
+                      <View style={styles.resultScore}>
+                        <Text style={[styles.scoreText, { color: getScoreColor(result.score) }]}>
+                          {result.score}%
+                        </Text>
+                        <Text style={styles.scoreDetail}>
+                          {result.correctAnswers}/{result.totalQuestions}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.resultActions}>
+                      <Button
+                        mode="outlined"
+                        onPress={() => viewResult(result)}
+                        style={styles.viewButton}
+                        compact
+                      >
+                        View Details
+                      </Button>
+                    </View>
+                  </Card.Content>
+                </Card>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>No recent test results</Text>
+                <Text style={styles.emptySubtext}>Complete a test to see your results here</Text>
+              </View>
+            )}
           </Card.Content>
         </Card>
       </ScrollView>
@@ -189,7 +277,7 @@ const TestList = ({ navigation }) => {
       <FAB
         style={styles.fab}
         icon="plus"
-        onPress={() => navigation.navigate('CreateTest')}
+        onPress={() => navigation.navigate('TestGenerator')}
       />
     </View>
   );
@@ -307,6 +395,48 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: 16,
     textAlign: 'center',
+  },
+  resultItem: {
+    marginBottom: 12,
+    backgroundColor: colors.surface,
+  },
+  resultHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  resultInfo: {
+    flex: 1,
+  },
+  resultCategory: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  resultDate: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  resultScore: {
+    alignItems: 'flex-end',
+  },
+  scoreText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  scoreDetail: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  resultActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  viewButton: {
+    minWidth: 100,
   },
   createButton: {
     marginTop: 8,

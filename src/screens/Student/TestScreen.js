@@ -18,6 +18,7 @@ import {
   TextInput,
   ActivityIndicator,
 } from 'react-native-paper';
+import * as ScreenCapture from 'expo-screen-capture';
 import { colors } from '../../constants/colors';
 import llmTestService from '../../services/llmTestService';
 
@@ -31,8 +32,11 @@ const TestScreen = ({ route, navigation }) => {
   const [showExplanation, setShowExplanation] = useState(false);
   const [userExplanation, setUserExplanation] = useState('');
   const [questionFeedback, setQuestionFeedback] = useState(null);
+  const [isTestActive, setIsTestActive] = useState(true);
+  const [isQuestionSubmitted, setIsQuestionSubmitted] = useState(false);
   
   const timerRef = useRef(null);
+  const isTestActiveRef = useRef(true);
   const currentQuestion = questions[currentQuestionIndex];
 
   useEffect(() => {
@@ -41,28 +45,90 @@ const TestScreen = ({ route, navigation }) => {
       setShowExplanation(false);
       setQuestionFeedback(null);
       setUserExplanation('');
+      setIsQuestionSubmitted(false);
     }
   }, [currentQuestionIndex]);
 
+  // Enable screenshot blocking when test starts
   useEffect(() => {
-    if (timeRemaining > 0) {
+    const enableScreenshotBlocking = async () => {
+      try {
+        await ScreenCapture.preventScreenCaptureAsync();
+        console.log('Screenshot blocking enabled');
+      } catch (error) {
+        console.warn('Failed to enable screenshot blocking:', error);
+      }
+    };
+
+    enableScreenshotBlocking();
+
+    // Cleanup function to re-enable screenshots when component unmounts
+    return () => {
+      const disableScreenshotBlocking = async () => {
+        try {
+          await ScreenCapture.allowScreenCaptureAsync();
+          console.log('Screenshot blocking disabled');
+        } catch (error) {
+          console.warn('Failed to disable screenshot blocking:', error);
+        }
+      };
+      disableScreenshotBlocking();
+    };
+  }, []);
+
+  useEffect(() => {
+    // Clear any existing timer
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+
+    if (timeRemaining > 0 && isTestActive) {
       timerRef.current = setTimeout(() => {
-        setTimeRemaining(timeRemaining - 1);
+        // Double-check if test is still active before updating time
+        if (!isTestActiveRef.current) {
+          console.log('Timer tick but test is not active - stopping timer');
+          return;
+        }
+        
+        setTimeRemaining(prev => {
+          const newTime = prev - 1;
+          if (newTime === 0 && isTestActiveRef.current) {
+            // Use setTimeout to avoid calling handleTimeUp during render
+            setTimeout(() => {
+              // Final check before calling handleTimeUp
+              if (isTestActiveRef.current) {
+                handleTimeUp();
+              }
+            }, 0);
+          }
+          return newTime;
+        });
       }, 1000);
-    } else {
-      handleTimeUp();
     }
 
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
+        timerRef.current = null;
       }
     };
-  }, [timeRemaining]);
+  }, [timeRemaining, isTestActive]);
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
     return () => backHandler.remove();
+  }, []);
+
+  // Cleanup timer when component unmounts
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+        console.log('Timer cleaned up on component unmount');
+      }
+    };
   }, []);
 
   const handleBackPress = () => {
@@ -71,13 +137,43 @@ const TestScreen = ({ route, navigation }) => {
       'Are you sure you want to exit? Your progress will be lost.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Exit', style: 'destructive', onPress: () => navigation.goBack() },
+        { 
+          text: 'Exit', 
+          style: 'destructive', 
+          onPress: async () => {
+            // Stop the timer when exiting test
+            setIsTestActive(false);
+            isTestActiveRef.current = false;
+            if (timerRef.current) {
+              clearTimeout(timerRef.current);
+              timerRef.current = null;
+              console.log('Timer stopped - test exited');
+            }
+
+            // Re-enable screenshots when exiting test
+            try {
+              await ScreenCapture.allowScreenCaptureAsync();
+              console.log('Screenshot blocking disabled - test exited');
+            } catch (error) {
+              console.warn('Failed to disable screenshot blocking on exit:', error);
+            }
+            navigation.goBack();
+          }
+        },
       ]
     );
     return true;
   };
 
   const handleTimeUp = () => {
+    // Only show time up alert if test is still active
+    if (!isTestActiveRef.current) {
+      console.log('Time up called but test is not active - ignoring');
+      return;
+    }
+    
+    setIsTestActive(false);
+    isTestActiveRef.current = false;
     Alert.alert(
       'Time Up!',
       'Time limit for this question has been reached. Moving to next question.',
@@ -93,9 +189,24 @@ const TestScreen = ({ route, navigation }) => {
   };
 
   const handleSubmitAnswer = async () => {
+    if (isQuestionSubmitted) {
+      Alert.alert('Already Submitted', 'You have already submitted an answer for this question.');
+      return;
+    }
+
     if (answers[currentQuestionIndex] === undefined) {
       Alert.alert('No Answer', 'Please select an answer before submitting.');
       return;
+    }
+
+    // Mark question as submitted
+    setIsQuestionSubmitted(true);
+
+    // Stop the timer when answer is submitted
+    setIsTestActive(false);
+    isTestActiveRef.current = false;
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
     }
 
     setIsSubmitting(true);
@@ -118,6 +229,8 @@ const TestScreen = ({ route, navigation }) => {
   };
 
   const nextQuestion = () => {
+    setIsTestActive(true);
+    isTestActiveRef.current = true;
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
@@ -126,12 +239,31 @@ const TestScreen = ({ route, navigation }) => {
   };
 
   const previousQuestion = () => {
+    setIsTestActive(true);
+    isTestActiveRef.current = true;
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex(currentQuestionIndex - 1);
     }
   };
 
-  const handleTestComplete = () => {
+  const handleTestComplete = async () => {
+    // Stop the timer completely when test completes
+    setIsTestActive(false);
+    isTestActiveRef.current = false;
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+      console.log('Timer stopped - test completed');
+    }
+
+    // Re-enable screenshots when test completes
+    try {
+      await ScreenCapture.allowScreenCaptureAsync();
+      console.log('Screenshot blocking disabled - test completed');
+    } catch (error) {
+      console.warn('Failed to disable screenshot blocking on test completion:', error);
+    }
+
     const testResults = {
       questions,
       answers,
@@ -174,11 +306,23 @@ const TestScreen = ({ route, navigation }) => {
                 Question {currentQuestionIndex + 1} of {questions.length}
               </Text>
               <Chip
-                icon="clock"
-                style={styles.timerChip}
-                textStyle={{ color: timeRemaining < 10 ? colors.error : colors.white }}
+                icon={isTestActive ? "clock" : showExplanation ? "check" : "clock"}
+                style={[
+                  styles.timerChip,
+                  !isTestActive && showExplanation && styles.timerChipCompleted
+                ]}
+                textStyle={{ 
+                  color: !isTestActive && showExplanation 
+                    ? colors.white 
+                    : timeRemaining < 10 
+                      ? colors.error 
+                      : colors.white 
+                }}
               >
-                {formatTime(timeRemaining)}
+                {!isTestActive && showExplanation 
+                  ? "Completed" 
+                  : formatTime(timeRemaining)
+                }
               </Chip>
             </View>
             <View style={styles.headerRight}>
@@ -187,6 +331,13 @@ const TestScreen = ({ route, navigation }) => {
               </Chip>
               <Chip style={styles.difficultyChip}>
                 {difficulty}
+              </Chip>
+              <Chip 
+                icon="shield-check" 
+                style={styles.securityChip}
+                textStyle={{ color: colors.white, fontSize: 12 }}
+              >
+                Secure
               </Chip>
             </View>
           </View>
@@ -199,6 +350,18 @@ const TestScreen = ({ route, navigation }) => {
       </Card>
 
       <ScrollView style={styles.scrollView}>
+        {/* Security Notice */}
+        <Card style={styles.securityNoticeCard}>
+          <Card.Content>
+            <View style={styles.securityNotice}>
+              <Text style={styles.securityIcon}>🔒</Text>
+              <Text style={styles.securityText}>
+                Screenshots are disabled during this test to maintain security and integrity.
+              </Text>
+            </View>
+          </Card.Content>
+        </Card>
+
         {/* Question */}
         <Card style={styles.questionCard}>
           <Card.Content>
@@ -264,11 +427,14 @@ const TestScreen = ({ route, navigation }) => {
             <Button
               mode="contained"
               onPress={handleSubmitAnswer}
-              disabled={isSubmitting || answers[currentQuestionIndex] === undefined}
-              style={styles.submitButton}
+              disabled={isSubmitting || answers[currentQuestionIndex] === undefined || isQuestionSubmitted}
+              style={[
+                styles.submitButton,
+                isQuestionSubmitted && styles.submittedButton
+              ]}
               contentStyle={styles.buttonContent}
             >
-              {isSubmitting ? 'Evaluating...' : 'Submit Answer'}
+              {isSubmitting ? 'Evaluating...' : isQuestionSubmitted ? 'Answer Submitted ✓' : 'Submit Answer'}
             </Button>
           </Card.Content>
         </Card>
@@ -382,11 +548,17 @@ const styles = StyleSheet.create({
   timerChip: {
     backgroundColor: colors.primary,
   },
+  timerChipCompleted: {
+    backgroundColor: '#4CAF50',
+  },
   categoryChip: {
     backgroundColor: colors.secondary,
   },
   difficultyChip: {
     backgroundColor: colors.accent,
+  },
+  securityChip: {
+    backgroundColor: '#4CAF50',
   },
   progressBar: {
     height: 8,
@@ -394,6 +566,28 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  securityNoticeCard: {
+    margin: 16,
+    marginBottom: 8,
+    backgroundColor: '#E8F5E8',
+    borderColor: '#4CAF50',
+    borderWidth: 1,
+  },
+  securityNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  securityIcon: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  securityText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#2E7D32',
+    fontWeight: '500',
   },
   questionCard: {
     margin: 16,
@@ -479,6 +673,9 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     marginBottom: 8,
+  },
+  submittedButton: {
+    backgroundColor: colors.success,
   },
   buttonContent: {
     paddingVertical: 8,

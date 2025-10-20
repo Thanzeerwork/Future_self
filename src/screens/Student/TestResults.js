@@ -16,9 +16,13 @@ import {
   Divider,
 } from 'react-native-paper';
 import { colors } from '../../constants/colors';
+import { useAuth } from '../../context/AuthContext';
+import { firestore } from '../../../firebase.config';
+import { collection, addDoc } from 'firebase/firestore';
 import llmTestService from '../../services/llmTestService';
 
 const TestResults = ({ route, navigation }) => {
+  const { userProfile } = useAuth();
   const { testResults } = route.params;
   const [report, setReport] = useState(null);
   const [isGenerating, setIsGenerating] = useState(true);
@@ -32,14 +36,43 @@ const TestResults = ({ route, navigation }) => {
     try {
       setIsGenerating(true);
       
+      console.log('Generating report for test results:', testResults);
+      
+      // Check if this is raw test data or processed report data
+      const isProcessedReport = testResults && testResults.score !== undefined && testResults.totalQuestions !== undefined;
+      
+      if (isProcessedReport) {
+        // This is already a processed report from Firestore
+        console.log('Using processed report data');
+        setReport(testResults);
+        setIsGenerating(false);
+        return;
+      }
+      
+      // This is raw test data that needs processing
+      if (!testResults || !testResults.questions || !testResults.answers) {
+        console.error('Invalid test results data:', testResults);
+        throw new Error('Invalid test results data');
+      }
+      
       // Calculate basic statistics
-      const totalQuestions = testResults.questions.length;
-      const answeredQuestions = Object.keys(testResults.answers).length;
-      const correctAnswers = Object.keys(testResults.answers).filter(
+      const questions = testResults.questions || [];
+      const answers = testResults.answers || {};
+      
+      const totalQuestions = questions.length;
+      const answeredQuestions = Object.keys(answers).length;
+      
+      console.log('Questions count:', totalQuestions, 'Answers count:', answeredQuestions);
+      
+      if (totalQuestions === 0) {
+        throw new Error('No questions found in test results');
+      }
+      
+      const correctAnswers = Object.keys(answers).filter(
         (index) => {
-          const question = testResults.questions[parseInt(index)];
-          const userAnswer = testResults.answers[parseInt(index)];
-          return question.correctAnswer === userAnswer;
+          const question = questions[parseInt(index)];
+          const userAnswer = answers[parseInt(index)];
+          return question && question.correctAnswer === userAnswer;
         }
       ).length;
 
@@ -64,12 +97,48 @@ const TestResults = ({ route, navigation }) => {
       };
 
       const aiReport = await llmTestService.generateTestReport(basicResults, userProfile);
-      setReport({ ...basicResults, ...aiReport });
+      const finalReport = { ...basicResults, ...aiReport };
+      setReport(finalReport);
+      
+      // Only save if this is raw test data, not an already processed report
+      if (!isProcessedReport) {
+        await saveTestResults(finalReport);
+      }
     } catch (error) {
       console.error('Error generating report:', error);
       setError('Failed to generate detailed report');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const saveTestResults = async (reportData) => {
+    try {
+      if (!userProfile?.uid) {
+        console.warn('No user profile available, skipping save');
+        return;
+      }
+
+      const testResultData = {
+        userId: userProfile.uid,
+        category: reportData.category || 'Unknown',
+        difficulty: reportData.difficulty || 'Beginner',
+        score: reportData.score || 0,
+        totalQuestions: reportData.totalQuestions || 0,
+        correctAnswers: reportData.correctAnswers || 0,
+        answeredQuestions: reportData.answeredQuestions || 0,
+        isPersonalized: reportData.isPersonalized || false,
+        completedAt: reportData.completedAt || new Date().toISOString(),
+        strengths: reportData.strengths || [],
+        weaknesses: reportData.weaknesses || [],
+        recommendations: reportData.recommendations || [],
+        createdAt: new Date().toISOString(),
+      };
+
+      await addDoc(collection(firestore, 'testResults'), testResultData);
+      console.log('Test results saved to Firestore');
+    } catch (error) {
+      console.error('Error saving test results:', error);
     }
   };
 
@@ -287,7 +356,7 @@ const TestResults = ({ route, navigation }) => {
             </Button>
             <Button
               mode="outlined"
-              onPress={() => navigation.navigate('TestList')}
+              onPress={() => navigation.navigate('StudentApp', { screen: 'TestList' })}
               style={styles.actionButton}
               contentStyle={styles.buttonContent}
             >
