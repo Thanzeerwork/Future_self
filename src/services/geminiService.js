@@ -224,47 +224,85 @@ class GeminiService {
         await new Promise(resolve => setTimeout(resolve, backoff));
         return this.fetchWithRetry(url, options, retries - 1, backoff * 2);
       }
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.warn('Gemini API Error Response:', errorData);
-        if (response.status === 429) {
-          throw new Error('Gemini API quota exceeded. Please try again later.');
-        }
-        throw new Error(`Gemini API request failed: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
-      }
-
-      const data = await response.json();
-
-      // Log the response structure for debugging (only for first call)
-      if (!this.modelName) {
-        console.log('Gemini API Response:', JSON.stringify(data, null, 2));
-      }
-
-      const content = this.extractContentFromResponse(data);
-      return this.extractAndParseJSON(content);
-    } catch (error) {
-      lastError = error;
-      // If it's a JSON parse error, retry
-      if (error.message.includes('JSON') || error.message.includes('Unexpected end')) {
-        console.warn(`Attempt ${attempt + 1} failed with JSON error: ${error.message}. Retrying...`);
-        // Clear model name to force re-check if we want to try a different model (optional, but keeping it simple for now)
-        continue;
-      }
-      // For other errors, throw immediately
-      console.warn('Error generating test questions with Gemini:', error.message);
       throw error;
     }
   }
-    
+
+  async generateTestQuestions(category, difficulty, count = 10, topic = null) {
+    const maxRetries = 2;
+    let lastError;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const prompt = this.buildPrompt(category, difficulty, count, topic);
+
+        // Get available model name (cache it after first call)
+        if (!this.modelName) {
+          this.modelName = await this.getAvailableModel();
+        }
+
+        const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${this.modelName}:generateContent`;
+        const response = await this.fetchWithRetry(`${apiUrl}?key=${this.apiKey}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: prompt
+              }]
+            }],
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 8192,
+              topP: 0.8,
+              topK: 10
+            }
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.warn('Gemini API Error Response:', errorData);
+          if (response.status === 429) {
+            throw new Error('Gemini API quota exceeded. Please try again later.');
+          }
+          throw new Error(`Gemini API request failed: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+        }
+
+        const data = await response.json();
+
+        // Log the response structure for debugging (only for first call)
+        if (!this.modelName) {
+          console.log('Gemini API Response:', JSON.stringify(data, null, 2));
+        }
+
+        const content = this.extractContentFromResponse(data);
+        return this.extractAndParseJSON(content);
+      } catch (error) {
+        lastError = error;
+        // If it's a JSON parse error, retry
+        if (error.message.includes('JSON') || error.message.includes('Unexpected end')) {
+          console.warn(`Attempt ${attempt + 1} failed with JSON error: ${error.message}. Retrying...`);
+          // Clear model name to force re-check if we want to try a different model (optional, but keeping it simple for now)
+          continue;
+        }
+        // For other errors, throw immediately
+        console.warn('Error generating test questions with Gemini:', error.message);
+        throw error;
+      }
+    }
+
     throw lastError;
   }
 
-buildPrompt(category, difficulty, count, topic) {
-  const basePrompt = `Generate ${count} ${difficulty} level ${category} test questions`;
-  const topicSpecifier = topic ? ` focused on ${topic}` : '';
+  buildPrompt(category, difficulty, count, topic) {
+    const basePrompt = `Generate ${count} ${difficulty} level ${category} test questions`;
+    const topicSpecifier = topic ? ` focused on ${topic}` : '';
 
-  const categoryPrompts = {
-    'Aptitude': `
+    const categoryPrompts = {
+      'Aptitude': `
         Generate aptitude test questions that assess:
         - Logical reasoning
         - Numerical ability
@@ -281,7 +319,7 @@ buildPrompt(category, difficulty, count, topic) {
         - Difficulty level
       `,
 
-    'Coding': `
+      'Coding': `
         Generate coding test questions that assess:
         - Programming concepts
         - Algorithm design
@@ -302,7 +340,7 @@ buildPrompt(category, difficulty, count, topic) {
         IMPORTANT: For coding questions, include a "codeSnippet" field with the actual code when the question involves analyzing or understanding code. The code should be properly formatted and relevant to the question.
       `,
 
-    'Technical': `
+      'Technical': `
         Generate technical test questions that assess:
         - System design concepts
         - Database knowledge
@@ -320,7 +358,7 @@ buildPrompt(category, difficulty, count, topic) {
         - Related technology/topic
       `,
 
-    'Soft Skills': `
+      'Soft Skills': `
         Generate soft skills test questions that assess:
         - Communication skills
         - Leadership qualities
@@ -337,9 +375,9 @@ buildPrompt(category, difficulty, count, topic) {
         - Difficulty level
         - Skill category
       `
-  };
+    };
 
-  return `${basePrompt}${topicSpecifier}. ${categoryPrompts[category]}
+    return `${basePrompt}${topicSpecifier}. ${categoryPrompts[category]}
 
     Return the response as a JSON array with this exact structure:
     [
@@ -356,11 +394,11 @@ buildPrompt(category, difficulty, count, topic) {
         "points": 10
       }
     ]`;
-}
+  }
 
   async generatePersonalizedQuestions(userProfile, category, count = 10) {
-  try {
-    const prompt = `Based on this user profile, generate ${count} personalized ${category} test questions:
+    try {
+      const prompt = `Based on this user profile, generate ${count} personalized ${category} test questions:
 
       User Profile:
       - Experience Level: ${userProfile.experienceLevel}
@@ -377,53 +415,53 @@ buildPrompt(category, difficulty, count, topic) {
 
       ${this.buildPrompt(category, userProfile.experienceLevel, count, null)}`;
 
-    // Get available model name (cache it after first call)
-    if (!this.modelName) {
-      this.modelName = await this.getAvailableModel();
-    }
-
-    const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${this.modelName}:generateContent`;
-    const response = await this.fetchWithRetry(`${apiUrl}?key=${this.apiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.8,
-          maxOutputTokens: 8192,
-          topP: 0.8,
-          topK: 10
-        }
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.warn('Gemini API Error Response:', errorData);
-      if (response.status === 429) {
-        throw new Error('Gemini API quota exceeded. Please try again later.');
+      // Get available model name (cache it after first call)
+      if (!this.modelName) {
+        this.modelName = await this.getAvailableModel();
       }
-      throw new Error(`Gemini API request failed: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
-    }
 
-    const data = await response.json();
-    const content = this.extractContentFromResponse(data);
-    return this.extractAndParseJSON(content);
-  } catch (error) {
-    console.warn('Error generating personalized questions with Gemini:', error.message);
-    throw error;
+      const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${this.modelName}:generateContent`;
+      const response = await this.fetchWithRetry(`${apiUrl}?key=${this.apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }],
+          generationConfig: {
+            temperature: 0.8,
+            maxOutputTokens: 8192,
+            topP: 0.8,
+            topK: 10
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.warn('Gemini API Error Response:', errorData);
+        if (response.status === 429) {
+          throw new Error('Gemini API quota exceeded. Please try again later.');
+        }
+        throw new Error(`Gemini API request failed: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+      }
+
+      const data = await response.json();
+      const content = this.extractContentFromResponse(data);
+      return this.extractAndParseJSON(content);
+    } catch (error) {
+      console.warn('Error generating personalized questions with Gemini:', error.message);
+      throw error;
+    }
   }
-}
 
   async evaluateAnswer(question, userAnswer, userExplanation = null) {
-  try {
-    const prompt = `Evaluate this test answer:
+    try {
+      const prompt = `Evaluate this test answer:
 
       Question: ${question.question}
       Correct Answer: ${question.options[question.correctAnswer]}
@@ -439,53 +477,53 @@ buildPrompt(category, difficulty, count, topic) {
         "conceptExplanation": "Explanation of the underlying concept"
       }`;
 
-    // Get available model name (cache it after first call)
-    if (!this.modelName) {
-      this.modelName = await this.getAvailableModel();
-    }
-
-    const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${this.modelName}:generateContent`;
-    const response = await this.fetchWithRetry(`${apiUrl}?key=${this.apiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 4000,
-          topP: 0.8,
-          topK: 10
-        }
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.warn('Gemini API Error Response:', errorData);
-      if (response.status === 429) {
-        throw new Error('Gemini API quota exceeded. Please try again later.');
+      // Get available model name (cache it after first call)
+      if (!this.modelName) {
+        this.modelName = await this.getAvailableModel();
       }
-      throw new Error(`Gemini API request failed: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
-    }
 
-    const data = await response.json();
-    const content = this.extractContentFromResponse(data);
-    return this.extractAndParseJSON(content);
-  } catch (error) {
-    console.warn('Error evaluating answer with Gemini:', error.message);
-    throw error;
+      const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${this.modelName}:generateContent`;
+      const response = await this.fetchWithRetry(`${apiUrl}?key=${this.apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }],
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 4000,
+            topP: 0.8,
+            topK: 10
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.warn('Gemini API Error Response:', errorData);
+        if (response.status === 429) {
+          throw new Error('Gemini API quota exceeded. Please try again later.');
+        }
+        throw new Error(`Gemini API request failed: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+      }
+
+      const data = await response.json();
+      const content = this.extractContentFromResponse(data);
+      return this.extractAndParseJSON(content);
+    } catch (error) {
+      console.warn('Error evaluating answer with Gemini:', error.message);
+      throw error;
+    }
   }
-}
 
   async generateTestReport(testResults, userProfile) {
-  try {
-    const prompt = `Generate a comprehensive test report based on these results:
+    try {
+      const prompt = `Generate a comprehensive test report based on these results:
 
       Test Results:
       ${JSON.stringify(testResults, null, 2)}
@@ -506,49 +544,49 @@ buildPrompt(category, difficulty, count, topic) {
         "resources": ["resource1", "resource2"]
       }`;
 
-    // Get available model name (cache it after first call)
-    if (!this.modelName) {
-      this.modelName = await this.getAvailableModel();
-    }
-
-    const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${this.modelName}:generateContent`;
-    const response = await this.fetchWithRetry(`${apiUrl}?key=${this.apiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.5,
-          maxOutputTokens: 8192,
-          topP: 0.8,
-          topK: 10
-        }
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.warn('Gemini API Error Response:', errorData);
-      if (response.status === 429) {
-        throw new Error('Gemini API quota exceeded. Please try again later.');
+      // Get available model name (cache it after first call)
+      if (!this.modelName) {
+        this.modelName = await this.getAvailableModel();
       }
-      throw new Error(`Gemini API request failed: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
-    }
 
-    const data = await response.json();
-    const content = this.extractContentFromResponse(data);
-    return this.extractAndParseJSON(content);
-  } catch (error) {
-    console.warn('Error generating test report with Gemini:', error.message);
-    throw error;
+      const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${this.modelName}:generateContent`;
+      const response = await this.fetchWithRetry(`${apiUrl}?key=${this.apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }],
+          generationConfig: {
+            temperature: 0.5,
+            maxOutputTokens: 8192,
+            topP: 0.8,
+            topK: 10
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.warn('Gemini API Error Response:', errorData);
+        if (response.status === 429) {
+          throw new Error('Gemini API quota exceeded. Please try again later.');
+        }
+        throw new Error(`Gemini API request failed: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+      }
+
+      const data = await response.json();
+      const content = this.extractContentFromResponse(data);
+      return this.extractAndParseJSON(content);
+    } catch (error) {
+      console.warn('Error generating test report with Gemini:', error.message);
+      throw error;
+    }
   }
-}
 }
 
 export default new GeminiService();
