@@ -97,6 +97,7 @@ const Profile = () => {
 
   const pickImage = async () => {
     try {
+      hideImagePickerModal();
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
@@ -125,6 +126,7 @@ const Profile = () => {
 
   const takePhoto = async () => {
     try {
+      hideImagePickerModal();
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         aspect: [1, 1],
@@ -447,6 +449,23 @@ const Profile = () => {
             </Card.Content>
           </Card>
         </Modal>
+
+        {/* Fullscreen loader while uploading */}
+        <Modal
+          visible={uploadingImage}
+          dismissable={false}
+          contentContainerStyle={styles.loadingOverlay}
+        >
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>
+            Uploading photo… {Math.round(uploadProgress)}%
+          </Text>
+          <ProgressBar
+            progress={uploadProgress / 100}
+            color={colors.primary}
+            style={styles.loadingBar}
+          />
+        </Modal>
       </Portal>
     </ScrollView>
   );
@@ -547,6 +566,21 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     marginBottom: 10,
+  },
+  loadingOverlay: {
+    backgroundColor: colors.cardBackground || '#fff',
+    padding: 24,
+    marginHorizontal: 32,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    color: colors.textPrimary,
+  },
+  loadingBar: {
+    width: '100%',
+    marginTop: 12,
   },
 });
 

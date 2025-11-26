@@ -160,7 +160,7 @@ const TestList = ({ navigation }) => {
                 Generate AI Test
               </Button>
               <Button
-                mode="outlined"
+                mode="contained"
                 onPress={() => navigation.navigate('TestGenerator')}
                 style={styles.quickButton}
               >
@@ -312,8 +312,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   generatorButton: {
+    mode: 'outlined',
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.primary,
   },
   quickButton: {
     flex: 1,

@@ -22,6 +22,13 @@ import TestResults from '../screens/Student/TestResults';
 import DetailedAnalysis from '../screens/Student/DetailedAnalysis';
 import CareerRoadmap from '../screens/Student/CareerRoadmap';
 import Analytics from '../screens/Student/Analytics';
+import ReadinessDashboard from '../screens/Student/StudentDashboard';
+import LLMAnalysis from '../screens/Student/LLMAnalysis';
+import SkillGapAnalysis from '../screens/Student/SkillGapAnalysis';
+import JobSearch from '../screens/Student/JobSearch';
+import LearningResources from '../screens/Student/LearningResources';
+import CommunityChallenges from '../screens/Student/CommunityChallenges';
+import ProfileSetup from '../screens/Student/ProfileSetup';
 
 // Mentor Screens
 import MentorDashboard from '../screens/Mentor/MentorDashboard';
@@ -433,6 +440,113 @@ const AppNavigator = () => {
               options={{
                 headerShown: true,
                 title: 'Detailed Analysis',
+                headerStyle: {
+                  backgroundColor: colors.primary,
+                },
+                headerTintColor: colors.white,
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            
+            {/* Student Module Screens */}
+            <Stack.Screen 
+              name="ProfileSetup" 
+              component={ProfileSetup}
+              options={{
+                headerShown: true,
+                title: 'Profile Setup',
+                headerStyle: {
+                  backgroundColor: colors.primary,
+                },
+                headerTintColor: colors.white,
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="LLMAnalysis" 
+              component={LLMAnalysis}
+              options={{
+                headerShown: true,
+                title: 'AI Career Analysis',
+                headerStyle: {
+                  backgroundColor: colors.primary,
+                },
+                headerTintColor: colors.white,
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="SkillGapAnalysis" 
+              component={SkillGapAnalysis}
+              options={{
+                headerShown: true,
+                title: 'Skill Gap Analysis',
+                headerStyle: {
+                  backgroundColor: colors.primary,
+                },
+                headerTintColor: colors.white,
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="ReadinessDashboard" 
+              component={ReadinessDashboard}
+              options={{
+                headerShown: true,
+                title: 'Readiness Dashboard',
+                headerStyle: {
+                  backgroundColor: colors.primary,
+                },
+                headerTintColor: colors.white,
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="JobSearch" 
+              component={JobSearch}
+              options={{
+                headerShown: true,
+                title: 'Job Search',
+                headerStyle: {
+                  backgroundColor: colors.primary,
+                },
+                headerTintColor: colors.white,
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="LearningResources" 
+              component={LearningResources}
+              options={{
+                headerShown: true,
+                title: 'Learning Resources',
+                headerStyle: {
+                  backgroundColor: colors.primary,
+                },
+                headerTintColor: colors.white,
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="CommunityChallenges" 
+              component={CommunityChallenges}
+              options={{
+                headerShown: true,
+                title: 'Community Challenges',
                 headerStyle: {
                   backgroundColor: colors.primary,
                 },
