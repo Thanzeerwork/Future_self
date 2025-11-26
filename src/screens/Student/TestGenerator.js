@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -16,6 +16,7 @@ import {
   ActivityIndicator,
   Chip,
   Divider,
+  ProgressBar,
 } from 'react-native-paper';
 import { colors } from '../../constants/colors';
 import llmTestService from '../../services/llmTestService';
@@ -26,6 +27,10 @@ const TestGenerator = ({ navigation }) => {
   const [questionCount, setQuestionCount] = useState('10');
   const [customTopic, setCustomTopic] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [loadingMessage, setLoadingMessage] = useState('Initializing...');
+
+  const progressInterval = useRef(null);
 
   const categories = [
     { id: 'Aptitude', name: 'Aptitude', icon: 'calculator', color: colors.primary },
@@ -42,6 +47,56 @@ const TestGenerator = ({ navigation }) => {
 
   const questionCounts = ['5', '10', '15', '20', '25'];
 
+  const loadingMessages = [
+    "Connecting to AI services...",
+    "Analyzing requirements...",
+    "Drafting questions...",
+    "Reviewing difficulty levels...",
+    "Formatting content...",
+    "Finalizing your test..."
+  ];
+
+  const startProgressSimulation = () => {
+    setProgress(0);
+    setLoadingMessage(loadingMessages[0]);
+    let currentProgress = 0;
+    let messageIndex = 0;
+
+    progressInterval.current = setInterval(() => {
+      currentProgress += 0.05;
+
+      // Update message periodically
+      if (Math.floor(currentProgress * 10) % 2 === 0) {
+        messageIndex = (messageIndex + 1) % loadingMessages.length;
+        setLoadingMessage(loadingMessages[messageIndex]);
+      }
+
+      // Cap at 90% until actual completion
+      if (currentProgress >= 0.9) {
+        currentProgress = 0.9;
+      }
+
+      setProgress(currentProgress);
+    }, 500);
+  };
+
+  const stopProgressSimulation = () => {
+    if (progressInterval.current) {
+      clearInterval(progressInterval.current);
+      progressInterval.current = null;
+    }
+    setProgress(1);
+    setLoadingMessage("Complete!");
+  };
+
+  useEffect(() => {
+    return () => {
+      if (progressInterval.current) {
+        clearInterval(progressInterval.current);
+      }
+    };
+  }, []);
+
   const handleGenerateTest = async () => {
     if (!selectedCategory || !selectedDifficulty) {
       Alert.alert('Error', 'Please select both category and difficulty level');
@@ -49,6 +104,8 @@ const TestGenerator = ({ navigation }) => {
     }
 
     setIsGenerating(true);
+    startProgressSimulation();
+
     try {
       const questions = await llmTestService.generateTestQuestions(
         selectedCategory,
@@ -57,14 +114,19 @@ const TestGenerator = ({ navigation }) => {
         customTopic || null
       );
 
-      navigation.navigate('TestScreen', {
-        questions,
-        category: selectedCategory,
-        difficulty: selectedDifficulty,
-        isGenerated: true,
-      });
+      stopProgressSimulation();
+      // Small delay to show completion
+      setTimeout(() => {
+        navigation.navigate('TestScreen', {
+          questions,
+          category: selectedCategory,
+          difficulty: selectedDifficulty,
+          isGenerated: true,
+        });
+      }, 500);
     } catch (error) {
       console.error('Error generating test:', error);
+      stopProgressSimulation();
       Alert.alert('Error', 'Failed to generate test. Please try again.');
     } finally {
       setIsGenerating(false);
@@ -78,6 +140,8 @@ const TestGenerator = ({ navigation }) => {
     }
 
     setIsGenerating(true);
+    startProgressSimulation();
+
     try {
       // Get user profile from context or storage
       const userProfile = {
@@ -94,15 +158,20 @@ const TestGenerator = ({ navigation }) => {
         parseInt(questionCount)
       );
 
-      navigation.navigate('TestScreen', {
-        questions,
-        category: selectedCategory,
-        difficulty: 'Personalized',
-        isGenerated: true,
-        isPersonalized: true,
-      });
+      stopProgressSimulation();
+      // Small delay to show completion
+      setTimeout(() => {
+        navigation.navigate('TestScreen', {
+          questions,
+          category: selectedCategory,
+          difficulty: 'Personalized',
+          isGenerated: true,
+          isPersonalized: true,
+        });
+      }, 500);
     } catch (error) {
       console.error('Error generating personalized test:', error);
+      stopProgressSimulation();
       Alert.alert('Error', 'Failed to generate personalized test. Please try again.');
     } finally {
       setIsGenerating(false);
@@ -237,9 +306,9 @@ const TestGenerator = ({ navigation }) => {
         {isGenerating && (
           <Card style={styles.loadingCard}>
             <Card.Content style={styles.loadingContent}>
-              <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.loadingText}>Generating questions...</Text>
-              <Text style={styles.loadingSubtext}>This may take a few moments</Text>
+              <ProgressBar progress={progress} color={colors.primary} style={styles.progressBar} />
+              <Text style={styles.loadingText}>{loadingMessage}</Text>
+              <Text style={styles.loadingSubtext}>{(progress * 100).toFixed(0)}% Complete</Text>
             </Card.Content>
           </Card>
         )}
@@ -355,11 +424,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 20,
   },
+  progressBar: {
+    width: '100%',
+    height: 8,
+    borderRadius: 4,
+    marginBottom: 16,
+  },
   loadingText: {
     fontSize: 16,
     fontWeight: '500',
     color: colors.text,
-    marginTop: 12,
+    marginTop: 8,
+    textAlign: 'center',
   },
   loadingSubtext: {
     fontSize: 14,

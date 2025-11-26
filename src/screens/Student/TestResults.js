@@ -11,10 +11,10 @@ import {
   Paragraph,
   Button,
   Text,
-  Chip,
   ProgressBar,
   Divider,
 } from 'react-native-paper';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../context/AuthContext';
 import { firestore } from '../../../firebase.config';
@@ -35,12 +35,12 @@ const TestResults = ({ route, navigation }) => {
   const generateReport = async () => {
     try {
       setIsGenerating(true);
-      
+
       console.log('Generating report for test results:', testResults);
-      
+
       // Check if this is raw test data or processed report data
       const isProcessedReport = testResults && testResults.score !== undefined && testResults.totalQuestions !== undefined;
-      
+
       if (isProcessedReport) {
         // This is already a processed report from Firestore
         console.log('Using processed report data');
@@ -48,26 +48,26 @@ const TestResults = ({ route, navigation }) => {
         setIsGenerating(false);
         return;
       }
-      
+
       // This is raw test data that needs processing
       if (!testResults || !testResults.questions || !testResults.answers) {
         console.error('Invalid test results data:', testResults);
         throw new Error('Invalid test results data');
       }
-      
+
       // Calculate basic statistics
       const questions = testResults.questions || [];
       const answers = testResults.answers || {};
-      
+
       const totalQuestions = questions.length;
       const answeredQuestions = Object.keys(answers).length;
-      
+
       console.log('Questions count:', totalQuestions, 'Answers count:', answeredQuestions);
-      
+
       if (totalQuestions === 0) {
         throw new Error('No questions found in test results');
       }
-      
+
       const correctAnswers = Object.keys(answers).filter(
         (index) => {
           const question = questions[parseInt(index)];
@@ -99,7 +99,7 @@ const TestResults = ({ route, navigation }) => {
       const aiReport = await llmTestService.generateTestReport(basicResults, userProfile);
       const finalReport = { ...basicResults, ...aiReport };
       setReport(finalReport);
-      
+
       // Only save if this is raw test data, not an already processed report
       if (!isProcessedReport) {
         await saveTestResults(finalReport);
@@ -200,9 +200,9 @@ const TestResults = ({ route, navigation }) => {
               {testResults.category} Test - {testResults.difficulty} Level
             </Paragraph>
             {testResults.isPersonalized && (
-              <Chip style={styles.personalizedChip}>
-                Personalized Test
-              </Chip>
+              <View style={styles.personalizedBadge}>
+                <Text style={styles.personalizedText}>Personalized Test</Text>
+              </View>
             )}
           </Card.Content>
         </Card>
@@ -240,16 +240,12 @@ const TestResults = ({ route, navigation }) => {
           <Card style={styles.strengthsCard}>
             <Card.Content>
               <Title style={styles.sectionTitle}>Strengths</Title>
-              <View style={styles.chipsContainer}>
+              <View style={styles.resultsList}>
                 {report.strengths.map((strength, index) => (
-                  <Chip
-                    key={index}
-                    icon="check-circle"
-                    style={[styles.strengthChip, { backgroundColor: colors.success }]}
-                    textStyle={{ color: colors.white }}
-                  >
-                    {strength}
-                  </Chip>
+                  <View key={index} style={[styles.resultItem, { backgroundColor: colors.success }]}>
+                    <MaterialCommunityIcons name="check-circle" size={24} color={colors.white} />
+                    <Text style={styles.resultItemText}>{strength}</Text>
+                  </View>
                 ))}
               </View>
             </Card.Content>
@@ -261,16 +257,12 @@ const TestResults = ({ route, navigation }) => {
           <Card style={styles.weaknessesCard}>
             <Card.Content>
               <Title style={styles.sectionTitle}>Areas for Improvement</Title>
-              <View style={styles.chipsContainer}>
+              <View style={styles.resultsList}>
                 {report.weaknesses.map((weakness, index) => (
-                  <Chip
-                    key={index}
-                    icon="alert-circle"
-                    style={[styles.weaknessChip, { backgroundColor: colors.warning }]}
-                    textStyle={{ color: colors.white }}
-                  >
-                    {weakness}
-                  </Chip>
+                  <View key={index} style={[styles.resultItem, { backgroundColor: colors.warning }]}>
+                    <MaterialCommunityIcons name="alert-circle" size={24} color={colors.white} />
+                    <Text style={styles.resultItemText}>{weakness}</Text>
+                  </View>
                 ))}
               </View>
             </Card.Content>
@@ -423,9 +415,18 @@ const styles = StyleSheet.create({
     color: colors.white,
     opacity: 0.9,
   },
-  personalizedChip: {
+  personalizedBadge: {
     marginTop: 8,
     backgroundColor: colors.accent,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+  },
+  personalizedText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   scoreCard: {
     margin: 16,
@@ -501,16 +502,24 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     color: colors.text,
   },
-  chipsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  resultsList: {
+    flexDirection: 'column',
     gap: 8,
   },
-  strengthChip: {
+  resultItem: {
+    flexDirection: 'row',
+    padding: 12,
+    borderRadius: 8,
     marginBottom: 8,
+    alignItems: 'flex-start',
   },
-  weaknessChip: {
-    marginBottom: 8,
+  resultItemText: {
+    flex: 1,
+    marginLeft: 12,
+    color: colors.white,
+    fontSize: 14,
+    lineHeight: 20,
+    flexWrap: 'wrap',
   },
   recommendationItem: {
     marginBottom: 8,
