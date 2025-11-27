@@ -25,6 +25,8 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import { colors } from '../../constants/colors';
 import judge0Service from '../../services/judge0Service';
 
+import MonacoEditor from '../../components/MonacoEditor';
+
 const CodingTestScreen = ({ route, navigation }) => {
     const { questions, category, difficulty } = route.params;
 
@@ -165,19 +167,19 @@ const CodingTestScreen = ({ route, navigation }) => {
                     </Card.Content>
                 </Card>
 
+
+
+
                 <Card style={styles.editorCard}>
                     <Card.Content>
                         <Title>Code Editor (JavaScript)</Title>
                         <View style={styles.editorContainer}>
-                            <NativeTextInput
-                                style={styles.editor}
-                                multiline
+                            <MonacoEditor
                                 value={code}
-                                onChangeText={setCode}
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                                spellCheck={false}
-                                textAlignVertical="top"
+                                onChange={setCode}
+                                language="javascript"
+                                theme="vs-dark"
+                                style={styles.editor}
                             />
                         </View>
                     </Card.Content>
