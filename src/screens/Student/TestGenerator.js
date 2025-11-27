@@ -29,77 +29,53 @@ const TestGenerator = ({ navigation }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState('Initializing...');
-
-  const progressInterval = useRef(null);
-
   const categories = [
-    { id: 'Aptitude', name: 'Aptitude', icon: 'calculator', color: colors.primary },
-    { id: 'Coding', name: 'Coding', icon: 'code-tags', color: colors.secondary },
-    { id: 'Technical', name: 'Technical', icon: 'cog', color: colors.accent },
-    { id: 'Soft Skills', name: 'Soft Skills', icon: 'account-group', color: colors.success },
+    { id: 'Aptitude', name: 'Aptitude', icon: 'brain', color: '#4ECDC4' },
+    { id: 'Coding', name: 'Coding', icon: 'code-tags', color: '#FF6B6B' },
+    { id: 'Technical', name: 'Technical', icon: 'server', color: '#45B7D1' },
+    { id: 'Soft Skills', name: 'Soft Skills', icon: 'account-group', color: '#96CEB4' },
+    { id: 'Realtime Coding', name: 'Realtime Coding', icon: 'laptop', color: '#9D50BB' },
   ];
 
   const difficulties = [
-    { id: 'Beginner', name: 'Beginner', description: 'Basic concepts and fundamentals' },
-    { id: 'Intermediate', name: 'Intermediate', description: 'Moderate complexity and application' },
-    { id: 'Advanced', name: 'Advanced', description: 'Complex scenarios and expert-level knowledge' },
+    { id: 'Beginner', name: 'Beginner', description: 'Fundamental concepts and basic problem solving' },
+    { id: 'Intermediate', name: 'Intermediate', description: 'Complex scenarios and practical application' },
+    { id: 'Advanced', name: 'Advanced', description: 'Expert-level challenges and system design' },
   ];
 
-  const questionCounts = ['5', '10', '15', '20', '25'];
-
-  const loadingMessages = [
-    "Connecting to AI services...",
-    "Analyzing requirements...",
-    "Drafting questions...",
-    "Reviewing difficulty levels...",
-    "Formatting content...",
-    "Finalizing your test..."
-  ];
+  const questionCounts = ['5', '10', '15', '20'];
 
   const startProgressSimulation = () => {
     setProgress(0);
-    setLoadingMessage(loadingMessages[0]);
-    let currentProgress = 0;
-    let messageIndex = 0;
+    setLoadingMessage('Initializing AI...');
 
-    progressInterval.current = setInterval(() => {
-      currentProgress += 0.05;
+    const interval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 0.9) {
+          clearInterval(interval);
+          return 0.9;
+        }
+        return prev + 0.1;
+      });
 
-      // Update message periodically
-      if (Math.floor(currentProgress * 10) % 2 === 0) {
-        messageIndex = (messageIndex + 1) % loadingMessages.length;
-        setLoadingMessage(loadingMessages[messageIndex]);
-      }
-
-      // Cap at 90% until actual completion
-      if (currentProgress >= 0.9) {
-        currentProgress = 0.9;
-      }
-
-      setProgress(currentProgress);
+      setLoadingMessage(prev => {
+        if (progress < 0.3) return 'Analyzing requirements...';
+        if (progress < 0.6) return 'Generating questions...';
+        return 'Finalizing test...';
+      });
     }, 500);
+
+    return interval;
   };
 
   const stopProgressSimulation = () => {
-    if (progressInterval.current) {
-      clearInterval(progressInterval.current);
-      progressInterval.current = null;
-    }
     setProgress(1);
-    setLoadingMessage("Complete!");
+    setLoadingMessage('Test Ready!');
   };
-
-  useEffect(() => {
-    return () => {
-      if (progressInterval.current) {
-        clearInterval(progressInterval.current);
-      }
-    };
-  }, []);
 
   const handleGenerateTest = async () => {
     if (!selectedCategory || !selectedDifficulty) {
-      Alert.alert('Error', 'Please select both category and difficulty level');
+      Alert.alert('Error', 'Please select both category and difficulty');
       return;
     }
 
@@ -111,25 +87,34 @@ const TestGenerator = ({ navigation }) => {
         selectedCategory,
         selectedDifficulty,
         parseInt(questionCount),
-        customTopic || null
+        customTopic
       );
 
       stopProgressSimulation();
-      // Small delay to show completion
+
       setTimeout(() => {
-        navigation.navigate('TestScreen', {
-          questions,
-          category: selectedCategory,
-          difficulty: selectedDifficulty,
-          isGenerated: true,
-        });
+        setIsGenerating(false);
+        if (selectedCategory === 'Realtime Coding') {
+          navigation.navigate('CodingTestScreen', {
+            questions,
+            category: selectedCategory,
+            difficulty: selectedDifficulty,
+            isGenerated: true
+          });
+        } else {
+          navigation.navigate('TestScreen', {
+            questions,
+            category: selectedCategory,
+            difficulty: selectedDifficulty,
+            isGenerated: true
+          });
+        }
       }, 500);
     } catch (error) {
       console.error('Error generating test:', error);
       stopProgressSimulation();
-      Alert.alert('Error', 'Failed to generate test. Please try again.');
-    } finally {
       setIsGenerating(false);
+      Alert.alert('Error', 'Failed to generate test. Please try again.');
     }
   };
 
@@ -161,20 +146,31 @@ const TestGenerator = ({ navigation }) => {
       stopProgressSimulation();
       // Small delay to show completion
       setTimeout(() => {
-        navigation.navigate('TestScreen', {
-          questions,
-          category: selectedCategory,
-          difficulty: 'Personalized',
-          isGenerated: true,
-          isPersonalized: true,
-        });
+        setIsGenerating(false); // Close modal before navigating
+
+        if (selectedCategory === 'Realtime Coding') {
+          navigation.navigate('CodingTestScreen', {
+            questions,
+            category: selectedCategory,
+            difficulty: 'Personalized',
+            isGenerated: true,
+            isPersonalized: true,
+          });
+        } else {
+          navigation.navigate('TestScreen', {
+            questions,
+            category: selectedCategory,
+            difficulty: 'Personalized',
+            isGenerated: true,
+            isPersonalized: true,
+          });
+        }
       }, 500);
     } catch (error) {
       console.error('Error generating personalized test:', error);
       stopProgressSimulation();
-      Alert.alert('Error', 'Failed to generate personalized test. Please try again.');
-    } finally {
       setIsGenerating(false);
+      Alert.alert('Error', 'Failed to generate personalized test. Please try again.');
     }
   };
 

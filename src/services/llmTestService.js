@@ -11,7 +11,9 @@ class LLMTestService {
     if (this.geminiKey && this.geminiKey !== 'your-gemini-api-key-here') {
       try {
         console.log('Using Gemini Pro for test generation...');
-        return await geminiService.generateTestQuestions(category, difficulty, count, topic);
+        const result = await geminiService.generateTestQuestions(category, difficulty, count, topic);
+        // Ensure we return an array
+        return result.questions || result;
       } catch (error) {
         console.log('Gemini failed, using fallback questions...', error.message);
         return this.generateFallbackQuestions(category, difficulty, count);
@@ -29,7 +31,9 @@ class LLMTestService {
     if (this.geminiKey && this.geminiKey !== 'your-gemini-api-key-here') {
       try {
         console.log('Using Gemini Pro for personalized test generation...');
-        return await geminiService.generatePersonalizedQuestions(userProfile, category, count);
+        const result = await geminiService.generatePersonalizedQuestions(userProfile, category, count);
+        // Ensure we return an array
+        return result.questions || result;
       } catch (error) {
         console.log('Gemini failed, using fallback questions...', error.message);
         return this.generateFallbackQuestions(category, userProfile.experienceLevel, count);
@@ -162,6 +166,37 @@ test();`,
           points: 10
         }
       ],
+      'Realtime Coding': [
+        {
+          id: 'rt_code_1',
+          title: 'Two Sum',
+          description: 'Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.',
+          functionSignature: 'function twoSum(nums, target) {\n  // Your code here\n}',
+          testCases: [
+            { input: '[2,7,11,15], 9', expectedOutput: '[0,1]' },
+            { input: '[3,2,4], 6', expectedOutput: '[1,2]' },
+            { input: '[3,3], 6', expectedOutput: '[0,1]' }
+          ],
+          constraints: 'Time: 1s, Memory: 256MB',
+          difficulty: difficulty,
+          topic: 'Algorithms',
+          timeLimit: 1800
+        },
+        {
+          id: 'rt_code_2',
+          title: 'Reverse String',
+          description: 'Write a function that reverses a string. The input string is given as an array of characters s.',
+          functionSignature: 'function reverseString(s) {\n  // Your code here\n}',
+          testCases: [
+            { input: '["h","e","l","l","o"]', expectedOutput: '["o","l","l","e","h"]' },
+            { input: '["H","a","n","n","a","h"]', expectedOutput: '["h","a","n","n","a","H"]' }
+          ],
+          constraints: 'Time: 1s, Memory: 256MB',
+          difficulty: difficulty,
+          topic: 'Strings',
+          timeLimit: 1800
+        }
+      ],
       'Technical': [
         {
           id: 'tech_1',
@@ -224,15 +259,15 @@ test();`,
   basicAnswerEvaluation(question, userAnswer, userExplanation = null) {
     const isCorrect = question.correctAnswer === userAnswer;
     const score = isCorrect ? 10 : 0;
-    
+
     return {
       isCorrect,
       score,
-      feedback: isCorrect 
-        ? "Correct! Well done." 
+      feedback: isCorrect
+        ? "Correct! Well done."
         : `Incorrect. The correct answer is: ${question.options[question.correctAnswer]}`,
-      suggestions: isCorrect 
-        ? "Keep up the great work!" 
+      suggestions: isCorrect
+        ? "Keep up the great work!"
         : "Review the concept and try similar questions.",
       conceptExplanation: question.explanation || "Please review the topic for better understanding."
     };
@@ -241,21 +276,21 @@ test();`,
   // Basic test report when AI is not available
   basicTestReport(testResults, userProfile) {
     const percentage = Math.round((testResults.correctAnswers / testResults.totalQuestions) * 100);
-    
+
     return {
       overallScore: testResults.correctAnswers,
       percentage,
       strengths: percentage >= 70 ? ["Good understanding of concepts"] : [],
       weaknesses: percentage < 70 ? ["Need more practice"] : [],
-      recommendations: percentage >= 80 
-        ? ["Continue practicing to maintain skills"] 
+      recommendations: percentage >= 80
+        ? ["Continue practicing to maintain skills"]
         : ["Focus on weak areas and practice more"],
-      nextSteps: percentage >= 70 
-        ? ["Take more advanced tests"] 
+      nextSteps: percentage >= 70
+        ? ["Take more advanced tests"]
         : ["Review basic concepts and retake test"],
       detailedAnalysis: `You scored ${percentage}% (${testResults.correctAnswers}/${testResults.totalQuestions} correct). ${percentage >= 70 ? 'Good job!' : 'Keep practicing!'}`,
-      improvementPlan: percentage >= 70 
-        ? "Continue with advanced topics" 
+      improvementPlan: percentage >= 70
+        ? "Continue with advanced topics"
         : "Focus on fundamental concepts",
       resources: ["Practice tests", "Study materials", "Online tutorials"]
     };

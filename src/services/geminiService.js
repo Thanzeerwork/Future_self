@@ -138,7 +138,14 @@ class GeminiService {
 
     // Try to parse the JSON response
     try {
-      return JSON.parse(jsonContent);
+      // Fix Python-style booleans (True/False) and None to JSON (true/false/null)
+      // We look for these values preceded by :, [, or , (with optional whitespace)
+      const fixedContent = jsonContent
+        .replace(/([:\[,]\s*)True\b/g, '$1true')
+        .replace(/([:\[,]\s*)False\b/g, '$1false')
+        .replace(/([:\[,]\s*)None\b/g, '$1null');
+
+      return JSON.parse(fixedContent);
     } catch (parseError) {
       // If parsing fails, try to fix common issues
       console.error('JSON Parse Error. Attempting to fix...');
@@ -195,6 +202,12 @@ class GeminiService {
             console.log('Extracted valid JSON up to index:', lastValidIndex);
           }
         }
+
+        // Also fix Python booleans/None in the fixed JSON
+        fixedJson = fixedJson
+          .replace(/([:\[,]\s*)True\b/g, '$1true')
+          .replace(/([:\[,]\s*)False\b/g, '$1false')
+          .replace(/([:\[,]\s*)None\b/g, '$1null');
 
         const result = JSON.parse(fixedJson);
         console.log('Successfully parsed after fixing');
@@ -298,12 +311,9 @@ class GeminiService {
   }
 
   buildPrompt(category, difficulty, count, topic) {
-    const basePrompt = `Generate ${count} ${difficulty} level ${category} test questions`;
-    const topicSpecifier = topic ? ` focused on ${topic}` : '';
-
     const categoryPrompts = {
       'Aptitude': `
-        Generate aptitude test questions that assess:
+        Generate ${count} aptitude test questions that assess:
         - Logical reasoning
         - Numerical ability
         - Verbal reasoning
@@ -316,11 +326,11 @@ class GeminiService {
         - Correct answer
         - Explanation
         - Time limit in seconds
-        - Difficulty level
+        - Difficulty level: ${difficulty}
       `,
 
       'Coding': `
-        Generate coding test questions that assess:
+        Generate ${count} coding test questions that assess:
         - Programming concepts
         - Algorithm design
         - Data structures
@@ -334,14 +344,14 @@ class GeminiService {
         - Correct answer
         - Explanation
         - Time limit in seconds
-        - Difficulty level
+        - Difficulty level: ${difficulty}
         - Programming language (JavaScript, Python, Java, or C++)
         
         IMPORTANT: For coding questions, include a "codeSnippet" field with the actual code when the question involves analyzing or understanding code. The code should be properly formatted and relevant to the question.
       `,
 
       'Technical': `
-        Generate technical test questions that assess:
+        Generate ${count} technical test questions that assess:
         - System design concepts
         - Database knowledge
         - Network protocols
@@ -354,12 +364,12 @@ class GeminiService {
         - Correct answer
         - Detailed explanation
         - Time limit in seconds
-        - Difficulty level
+        - Difficulty level: ${difficulty}
         - Related technology/topic
       `,
 
       'Soft Skills': `
-        Generate soft skills test questions that assess:
+        Generate ${count} soft skills test questions that assess:
         - Communication skills
         - Leadership qualities
         - Teamwork abilities
@@ -367,33 +377,71 @@ class GeminiService {
         - Emotional intelligence
         
         Each question should have:
-        - Scenario-based question
-        - 4 behavioral response options
-        - Best answer
-        - Explanation of why it's the best approach
-        - Time limit in seconds
-        - Difficulty level
-        - Skill category
+        - Scenario based question
+        - 4 multiple choice options
+        - Correct answer
+        - Explanation
+        - Difficulty level: ${difficulty}
       `
     };
 
-    return `${basePrompt}${topicSpecifier}. ${categoryPrompts[category]}
+    if (category === 'Realtime Coding') {
+      return `Generate ${count} coding problems for a ${difficulty} level developer.
+      ${topic ? `Focus specifically on the topic: ${topic}.` : ''}
 
-    Return the response as a JSON array with this exact structure:
-    [
+      For each problem, provide:
+      1. A clear problem description
+      2. Function signature (in JavaScript)
+      3. At least 3 test cases with input and expected output
+      4. Constraints
+
+      Return the response in this EXACT JSON format (use "true"/"false" for booleans, NOT "True"/"False"):
       {
-        "id": "unique_id",
-        "question": "Question text here",
-        "options": ["Option A", "Option B", "Option C", "Option D"],
-        "correctAnswer": 0,
-        "explanation": "Detailed explanation here",
-        "timeLimit": 60,
-        "difficulty": "${difficulty}",
-        "category": "${category}",
-        "topic": "${topic || 'General'}",
-        "points": 10
+        "questions": [
+          {
+            "id": "unique_id",
+            "title": "Problem Title",
+            "description": "Problem description...",
+            "functionSignature": "function solve(arg1) {\\n  // Your code here\\n}",
+            "testCases": [
+              { "input": "arg1_value", "expectedOutput": "expected_result" }
+            ],
+            "constraints": "Time: 1s, Memory: 256MB",
+            "difficulty": "${difficulty}",
+            "topic": "${topic || 'Algorithms'}",
+            "timeLimit": 1800
+          }
+        ]
+      }`;
+    }
+
+    // Default prompt for other categories
+    let prompt = categoryPrompts[category] || `Generate ${count} multiple-choice questions for a ${difficulty} level test in the category: ${category}.`;
+
+    if (topic) {
+      prompt += `\nFocus specifically on the topic: ${topic}.`;
+    }
+
+    // Append JSON format requirement for multiple choice questions
+    prompt += `
+      Return the response in this EXACT JSON format:
+      {
+        "questions": [
+          {
+            "id": "1",
+            "question": "Question text here",
+            "options": ["Option A", "Option B", "Option C", "Option D"],
+            "correctAnswer": 0,
+            "explanation": "Explanation of why the answer is correct",
+            "topic": "Specific topic tag",
+            "difficulty": "${difficulty}",
+            "codeSnippet": "Optional code snippet if required"
+          }
+        ]
       }
-    ]`;
+    `;
+
+    return prompt;
   }
 
   async generatePersonalizedQuestions(userProfile, category, count = 10) {
@@ -401,19 +449,19 @@ class GeminiService {
       const prompt = `Based on this user profile, generate ${count} personalized ${category} test questions:
 
       User Profile:
-      - Experience Level: ${userProfile.experienceLevel}
-      - Skills: ${userProfile.skills.join(', ')}
-      - Weak Areas: ${userProfile.weakAreas.join(', ')}
-      - Career Goals: ${userProfile.careerGoals}
-      - Previous Test Performance: ${userProfile.previousPerformance}
+    - Experience Level: ${userProfile.experienceLevel}
+    - Skills: ${userProfile.skills.join(', ')}
+    - Weak Areas: ${userProfile.weakAreas.join(', ')}
+    - Career Goals: ${userProfile.careerGoals}
+    - Previous Test Performance: ${userProfile.previousPerformance}
 
       Generate questions that:
-      1. Match their experience level
-      2. Focus on their weak areas for improvement
+    1. Match their experience level
+    2. Focus on their weak areas for improvement
       3. Align with their career goals
-      4. Build on their existing skills
+    4. Build on their existing skills
 
-      ${this.buildPrompt(category, userProfile.experienceLevel, count, null)}`;
+      ${this.buildPrompt(category, userProfile.experienceLevel, count, null)} `;
 
       // Get available model name (cache it after first call)
       if (!this.modelName) {
