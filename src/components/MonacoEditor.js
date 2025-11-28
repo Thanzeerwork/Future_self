@@ -5,7 +5,7 @@ import { WebView } from 'react-native-webview';
 const MonacoEditor = ({
     value,
     language = 'javascript',
-    theme = 'vs-dark',
+    theme = 'vs',
     onChange,
     style
 }) => {
@@ -38,7 +38,7 @@ const MonacoEditor = ({
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #1e1e1e; }
+        html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #ffffff; }
         #container { height: 100%; width: 100%; }
     </style>
 </head>
@@ -166,11 +166,11 @@ const styles = StyleSheet.create({
     },
     webview: {
         flex: 1,
-        backgroundColor: '#1e1e1e',
+        backgroundColor: '#ffffff',
     },
     loadingOverlay: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: '#1e1e1e',
+        backgroundColor: '#ffffff',
         justifyContent: 'center',
         alignItems: 'center',
     },

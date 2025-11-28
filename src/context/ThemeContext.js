@@ -38,29 +38,17 @@ const buildColorPalette = (mode) => {
 };
 
 export const ThemeProvider = ({ children }) => {
-  const systemScheme = Appearance.getColorScheme();
-  const defaultMode = systemScheme === 'dark' ? 'dark' : 'light';
-  const [mode, setMode] = useState(defaultMode);
-  const [bootstrapped, setBootstrapped] = useState(false);
+  const [mode, setMode] = useState('light');
+  const [bootstrapped, setBootstrapped] = useState(true);
 
+  // Force light mode always
   useEffect(() => {
-    (async () => {
-      try {
-        const saved = await AsyncStorage.getItem(STORAGE_KEY);
-        if (saved === 'light' || saved === 'dark') {
-          setMode(saved);
-        }
-      } catch {}
-      setBootstrapped(true);
-    })();
+    setMode('light');
   }, []);
 
   const toggleMode = async () => {
-    const next = mode === 'light' ? 'dark' : 'light';
-    setMode(next);
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY, next);
-    } catch {}
+    // Disabled for now as we want to enforce light mode
+    console.log('Dark mode is disabled');
   };
 
   const paperTheme = useMemo(() => {
